@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,51 +9,21 @@ import '../domain/favorite_gym.dart';
 import '../domain/friend_activity.dart';
 import '../domain/notice.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final _noticeController = PageController(viewportFraction: 0.88);
-  Timer? _timer;
-  int _noticeIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!_noticeController.hasClients) return;
-      _noticeIndex = (_noticeIndex + 1) % mockNotices.length;
-      _noticeController.animateToPage(
-        _noticeIndex,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _noticeController.dispose();
-    super.dispose();
-  }
-
-  void _openNotice(Notice notice) {
+  void _openNotice(BuildContext context, Notice notice) {
     context.push('/notice/${notice.id}', extra: notice);
   }
 
-  void _notificationsTapped() {
+  void _notificationsTapped(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('알림 화면은 준비 중입니다.')),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isAuthenticated = ref.watch(authControllerProvider) is AuthAuthenticated;
 
@@ -73,7 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 IconButton(
-                  onPressed: _notificationsTapped,
+                  onPressed: () => _notificationsTapped(context),
                   icon: const Icon(Icons.notifications_none_rounded),
                   tooltip: '알림',
                 ),
@@ -81,41 +50,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
-        const SliverToBoxAdapter(child: _SectionHeader(title: '주요 공지')),
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 118,
-            child: PageView.builder(
-              controller: _noticeController,
-              itemCount: mockNotices.length,
-              onPageChanged: (i) => _noticeIndex = i,
-              itemBuilder: (context, i) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: _NoticeCard(notice: mockNotices[i], onTap: () => _openNotice(mockNotices[i])),
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
         if (isAuthenticated) ...[
-          const SliverToBoxAdapter(child: _StreakStatCard()),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          const SliverToBoxAdapter(child: _SectionHeader(title: '즐겨찾기 클라이밍장')),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 132,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: mockFavoriteGyms.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, i) => _FavoriteGymCard(gym: mockFavoriteGyms[i]),
-              ),
-            ),
-          ),
+          const SliverToBoxAdapter(child: _StreakStatCard()),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
           const SliverToBoxAdapter(child: _SectionHeader(title: '친구 활동')),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -128,6 +65,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: mockFriendActivities.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, i) => _FriendActivityCard(activity: mockFriendActivities[i]),
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverList.separated(
+              itemCount: mockFavoriteGyms.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 16),
+              itemBuilder: (context, i) => _GymFeedCard(
+                gym: mockFavoriteGyms[i],
+                onNoticeTap: () => _openNotice(context, mockFavoriteGyms[i].notice),
               ),
             ),
           ),
@@ -149,49 +98,6 @@ class _SectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  const _NoticeCard({required this.notice, required this.onTap});
-
-  final Notice notice;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 56,
-                decoration: BoxDecoration(color: notice.accent, borderRadius: BorderRadius.circular(4)),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(notice.title, style: theme.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Text(notice.subtitle, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -223,45 +129,6 @@ class _StreakStatCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FavoriteGymCard extends StatelessWidget {
-  const _FavoriteGymCard({required this.gym});
-
-  final FavoriteGym gym;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => context.go('/gym'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 148,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [gym.accent.withValues(alpha: 0.20), AppColors.surfaceElevated],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Icon(Icons.terrain_rounded, color: gym.accent, size: 24),
-            const SizedBox(height: 10),
-            Text(gym.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 2),
-            Text(gym.area, style: theme.textTheme.labelSmall),
-          ],
         ),
       ),
     );
@@ -316,6 +183,103 @@ class _FriendActivityCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 즐겨찾기 암장 피드 카드 — 암장 이름 + 메인 사진 + 그 암장에 종속된 공지.
+class _GymFeedCard extends StatelessWidget {
+  const _GymFeedCard({required this.gym, required this.onNoticeTap});
+
+  final FavoriteGym gym;
+  final VoidCallback onNoticeTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => context.go('/gym'),
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(gym.name, style: theme.textTheme.titleLarge),
+                        Text(gym.area, style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => context.go('/gym'),
+              borderRadius: BorderRadius.circular(14),
+              child: AspectRatio(
+                aspectRatio: 16 / 10,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [gym.accent.withValues(alpha: 0.22), AppColors.surfaceElevated],
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(Icons.terrain_rounded, color: gym.accent.withValues(alpha: 0.7), size: 40),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: onNoticeTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: gym.notice.accent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(gym.notice.title, style: theme.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(gym.notice.subtitle, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

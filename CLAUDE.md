@@ -97,7 +97,7 @@ lib/
 
 **로그인 없이도 앱 사용 가능(게스트 모드)**: 앱을 켰을 때 첫 화면은 로그인이 아니라 홈이다. `/profile`, `/record`만 로그인을 요구하고(`_authRequiredPaths`, [app_router.dart](lib/core/router/app_router.dart)), `/home`·`/gym`·`/more`는 게스트도 접근 가능. 홈 화면 안에서 개인화 섹션(즐겨찾기 클라이밍장/스트릭/친구활동)은 로그인 상태일 때만 보이고, 비로그인 시 그 자리에 로그인 유도 카드(`_GuestPromptCard`)가 대신 표시된다.
 
-- `/home` — [home_screen.dart](lib/features/home/presentation/home_screen.dart): "오늘은 어느 암장으로 가실건가요?" 헤더 + 알림 버튼(공개), 주요 공지 자동 회전 슬라이드(공개, 탭 시 `/notice/:id`로 이동), 그리고 로그인 시에만: 연속방문 스트릭 카드, 즐겨찾기 클라이밍장 가로 카드, 친구 활동 가로 카드. 즐겨찾기/공지/스트릭/친구활동 모두 API 부재로 목업 데이터 사용 중 (`reports/` 참고).
+- `/home` — [home_screen.dart](lib/features/home/presentation/home_screen.dart): "오늘은 어느 암장으로 가실건가요?" 헤더 + 알림 버튼(공개). 로그인 시에만: 연속방문 스트릭 카드, 친구 활동 가로 카드, 그리고 즐겨찾기 클라이밍장 **세로 피드** — 카드 하나가 [암장이름 + 메인 사진 + 그 암장에 종속된 공지]로 구성됨. **공지는 전역이 아니라 암장별로 붙는다** (`FavoriteGym.notice`, [favorite_gym.dart](lib/features/home/domain/favorite_gym.dart)) — 처음엔 전역 공지 슬라이드로 잘못 구현했다가 사용자 와이어프레임을 받고 암장별 종속 구조로 재작업함. 즐겨찾기/공지/스트릭/친구활동 모두 API 부재로 목업 데이터 사용 중 (`reports/` 참고).
 - `/gym`, `/record` — 기존 GymScreen/RecordScreen 재사용
 - `/profile`, `/more` — 최소 구현 (상세 디자인은 사용자가 별도 설계 예정)
 - 기존 `FeedScreen`(커뮤니티 피드, [feed_screen.dart](lib/features/feed/feed_screen.dart))은 5탭 구성에서 빠져 현재 라우팅에 연결되어 있지 않음 — 삭제하지 않고 보류 (재사용 여부 확인 필요)

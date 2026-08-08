@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,11 +33,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('오늘은 어느 암장으로\n가실건가요?'), findsOneWidget);
-    expect(find.text('주요 공지'), findsOneWidget);
     expect(find.text('로그인하기'), findsOneWidget);
-
-    // 홈 화면의 공지 슬라이드가 주기적으로 애니메이션되는 Timer를 갖고 있어,
-    // 위젯 트리를 해제하지 않으면 테스트 종료 시 pending timer 에러가 난다.
-    await tester.pumpWidget(const SizedBox.shrink());
   });
 }
