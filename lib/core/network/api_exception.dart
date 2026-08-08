@@ -2,24 +2,32 @@ import 'package:dio/dio.dart';
 
 /// 서버 에러 응답을 사용자에게 보여줄 메시지로 정규화한다.
 ///
-/// 백엔드의 유효성 검증 실패 응답 포맷이 아직 확정되지 않아(Spring 기본
-/// 예외 핸들러 그대로일 수도, 커스텀 포맷일 수도 있음) 알려진 몇 가지
-/// 형태(`message`, `errors[].defaultMessage`, `error`)를 순서대로 시도하고
-/// 모두 실패하면 상태코드 기반 기본 메시지로 대체한다. 실제 포맷이
-/// 확정되면 이 파서만 갱신하면 된다.
+/// 실제 백엔드 응답을 확인해 확정된 포맷: `{success, data, error: {code, message}}`.
+/// 혹시 모를 다른 형태(순수 `message`, `errors[].defaultMessage`)도 함께
+/// 시도해 하위호환성을 유지하고, 모두 실패하면 상태코드 기반 기본 메시지로
+/// 대체한다.
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.errorCode});
 
   final String message;
   final int? statusCode;
+  final String? errorCode;
 
   factory ApiException.fromDioException(DioException e) {
     final statusCode = e.response?.statusCode;
     final data = e.response?.data;
 
     if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map<String, dynamic>) {
+        final message = error['message'] as String?;
+        if (message != null && message.isNotEmpty) {
+          return ApiException(message, statusCode: statusCode, errorCode: error['code'] as String?);
+        }
+      }
+
       final message = data['message'] as String? ??
-          data['error'] as String? ??
+          (error is String ? error : null) ??
           _firstValidationMessage(data);
       if (message != null && message.isNotEmpty) {
         return ApiException(message, statusCode: statusCode);

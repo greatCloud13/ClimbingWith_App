@@ -1,29 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/mat_texture_background.dart';
-import '../feed/feed_screen.dart';
-import '../gym/gym_screen.dart';
-import '../record/record_screen.dart';
 
-class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+/// go_router의 StatefulShellRoute가 각 탭의 네비게이션 스택을 관리하고,
+/// 이 위젯은 탭 전환 UI만 담당한다 (기존 IndexedStack 수동 관리를 대체).
+class AppShell extends StatelessWidget {
+  const AppShell({super.key, required this.navigationShell});
 
-  @override
-  State<AppShell> createState() => _AppShellState();
-}
-
-class _AppShellState extends State<AppShell> {
-  int _index = 0;
-
-  static const _screens = [FeedScreen(), GymScreen(), RecordScreen()];
+  final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: MatTextureBackground(
-        child: IndexedStack(index: _index, children: _screens),
-      ),
+      body: MatTextureBackground(child: navigationShell),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
           color: AppColors.surface,
@@ -37,26 +28,33 @@ class _AppShellState extends State<AppShell> {
                 _NavItem(
                   icon: Icons.dynamic_feed_rounded,
                   label: '피드',
-                  selected: _index == 0,
-                  onTap: () => setState(() => _index = 0),
+                  selected: navigationShell.currentIndex == 0,
+                  onTap: () => _onTap(0),
                 ),
                 _NavItem(
                   icon: Icons.terrain_rounded,
                   label: '클라이밍장',
-                  selected: _index == 1,
-                  onTap: () => setState(() => _index = 1),
+                  selected: navigationShell.currentIndex == 1,
+                  onTap: () => _onTap(1),
                 ),
                 _NavItem(
                   icon: Icons.emoji_events_rounded,
                   label: '기록',
-                  selected: _index == 2,
-                  onTap: () => setState(() => _index = 2),
+                  selected: navigationShell.currentIndex == 2,
+                  onTap: () => _onTap(2),
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  void _onTap(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
     );
   }
 }

@@ -44,7 +44,7 @@ AI가 만든 UI가 어색해 보이는 이유와 대응 방법을 프로젝트 �
 - **네트워킹**: `dio` ^5.7.0 — 인증 토큰 자동 첨부 + 401 인터셉터
 - **보안 저장소**: `flutter_secure_storage` ^9.2.2 — AccessToken/로그인 사용자 정보 보관 (Keychain/Keystore, 평문 저장 아님)
 - **환경설정**: `--dart-define`으로 API base URL 주입 (백엔드 `.env`에 대응). 기본값 `http://localhost:8080`. `flutter run --dart-define=API_BASE_URL=https://...`로 오버라이드. [app_config.dart](lib/core/config/app_config.dart) 참고 — 대안으로 `flutter_dotenv` 런타임 방식도 있으나, 모바일 앱에 평문 설정 파일을 번들링하지 않아도 되고 실수로 잘못된 서버를 바라볼 위험이 적은 dart-define을 기본 채택
-- **라우팅**: `go_router` ^14.6.2 (의존성만 추가됨, 현재는 `IndexedStack` 기반 바텀 네비게이션으로 단순 구현 — 화면이 늘어나면 go_router로 전환)
+- **라우팅**: `go_router` ^14.6.2 — `StatefulShellRoute.indexedStack`으로 바텀탭 3개(`/feed`,`/gym`,`/record`) 구성, 인증 상태(`AuthChecking`/`Unauthenticated`/`Authenticated`)에 따라 `/splash`·`/login`·`/feed`로 자동 리다이렉트. [app_router.dart](lib/core/router/app_router.dart)
 - **폰트**: 로컬 번들 TTF (`assets/fonts/`), 네트워크 페치 없음
 
 ## 폴더 구조 (feature-first)
@@ -54,6 +54,7 @@ lib/
   core/
     config/          # app_config.dart — 환경설정 (API base URL 등)
     network/         # dio_client.dart, token_storage.dart, api_exception.dart
+    router/          # app_router.dart — go_router 라우트 정의 + 인증 리다이렉트
     theme/           # app_colors.dart, app_typography.dart, app_theme.dart — 디자인 토큰, 여기만 참조
     widgets/         # mat_texture_background.dart, grade_badge.dart 등 공용 위젯
   features/
@@ -65,8 +66,8 @@ lib/
     feed/            # feed_screen.dart — 커뮤니티 피드
     gym/             # gym_screen.dart — 클라이밍장/루트 정보
     record/          # record_screen.dart — 완등 기록/랭킹
-    shell/           # app_shell.dart — 바텀 네비게이션 셸
-  main.dart          # ProviderScope + AuthGate (로그인 상태에 따라 LoginScreen ↔ AppShell 전환)
+    shell/           # app_shell.dart, splash_screen.dart — 바텀 네비게이션 셸
+  main.dart          # ProviderScope + MaterialApp.router
 ```
 
 ## 인증 (구현 완료)
@@ -75,13 +76,19 @@ lib/
 - **유효성 검증**: 백엔드 DTO 제약과 동일하게 클라이언트에서도 검증 — username/nickname 4~20자, password 8~20자, email 형식
 - **세션 저장**: 로그인 성공 시 토큰 + 사용자 정보(username/nickname/role/managedGymId)를 `flutter_secure_storage`에 함께 저장. **주의**: 백엔드에 세션 복원용 "내 정보 조회"(`/api/auth/me` 등) API가 아직 없어서, 앱 재시작 시 로그인 응답에서 받은 사용자 정보를 그대로 복원하는 방식으로 구현함 (네트워크 재검증 없음). 저장된 토큰이 실제로는 만료됐더라도 앱은 우선 로그인된 것처럼 보여주고, 이후 첫 인증 필요 API 호출이 401을 받으면 그때 강제 로그아웃된다. `/api/auth/me`가 생기면 앱 시작 시 그 API로 세션을 검증하는 방식으로 교체 권장.
 - **토큰 만료**: 만료시간 필드가 아직 확정되지 않아 클라이언트에서 만료를 미리 계산하지 않음. 모든 인증 필요 요청은 `DioClient`가 토큰을 자동 첨부하고, 401 응답을 받으면 인터셉터가 세션을 지우고 로그인 화면으로 돌려보낸다.
-- **에러 메시지**: 백엔드의 유효성 검증 실패 응답 포맷이 미확정이라 [api_exception.dart](lib/core/network/api_exception.dart)에서 `message`/`error`/`errors[].defaultMessage` 등 알려진 형태를 순서대로 시도하고, 실패하면 상태코드 기반 기본 메시지로 대체함. **실제 에러 응답 포맷이 확정되면 이 파서를 업데이트해야 함.**
+- **에러 메시지**: 에러 응답 포맷은 `{success, data, error: {code, message}}`로 실제 백엔드 호출로 확인 완료 (성공 응답은 래핑 없이 flat — 예: 로그인 성공 시 `{token, username, role, nickname, managedGymId}` 그대로). [api_exception.dart](lib/core/network/api_exception.dart)에서 `error.message`를 우선 사용하고, 혹시 모를 다른 포맷(`message`, `errors[].defaultMessage`)도 폴백으로 시도함.
 - **로그아웃**: 피드 화면 상단 아이콘에 임시로 배치 (추후 프로필/설정 화면으로 이동 예정)
+- **CORS**: 로컬 개발 시 Flutter 웹(`localhost:8765`)과 Spring 백엔드(`localhost:8080`)가 다른 origin이라 백엔드에 CORS 허용 설정이 필요함 (2026-08-08 백엔드에 추가 완료, 확인함). 모바일 빌드에는 해당 없음(CORS는 브라우저 전용 정책).
+
+### 확인된 백엔드 이슈 (클라이언트에서 고칠 수 없음, 백엔드 확인 필요)
+
+- **회원가입 유효성 검증 미작동**: `POST /api/auth/signup`에 DTO 제약(아이디 4~20자, 이메일 형식, 비밀번호 8~20자)을 위반하는 값(`username: "a"`, `email: "not-an-email"`, `password: "123"`)을 보내도 200과 함께 가입이 성공함. 컨트롤러에 `@Valid`가 빠졌거나 예외 핸들러가 `MethodArgumentNotValidException`을 못 잡는 것으로 추정. 이 과정에서 실제로 `username: "a"` 테스트 계정이 생성됐으니 정리 필요.
+- **로그인 실패 시 500 반환**: 존재하지 않는/틀린 비밀번호로 로그인하면 401이 아니라 500 `SERVER_ERROR`가 내려옴. 인증 실패를 예외로 처리하지 않고 그대로 흘려보내는 것으로 추정.
 
 ## 남은 작업 순서
 
 1. ~~인증~~ (완료)
-2. go_router 전환 (화면이 늘어나기 전에 `IndexedStack` → 라우팅 기반으로 교체)
+2. ~~go_router 전환~~ (완료 — `/splash`, `/login`, `/signup`, `StatefulShellRoute`로 `/feed`·`/gym`·`/record`)
 3. 화면별 API 연동 — 클라이밍장 → 피드 → 기록 순, 로딩/에러/빈 상태 포함
 4. 테스트/CI + 배포 설정
 
