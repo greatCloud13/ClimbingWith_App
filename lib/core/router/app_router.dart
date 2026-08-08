@@ -5,10 +5,14 @@ import '../../features/auth/application/auth_providers.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
-import '../../features/feed/feed_screen.dart';
 import '../../features/gym/gym_screen.dart';
-import '../../features/record/record_screen.dart';
+import '../../features/home/domain/notice.dart';
+import '../../features/home/presentation/home_screen.dart';
+import '../../features/home/presentation/notice_detail_screen.dart';
+import '../../features/more/more_screen.dart';
+import '../../features/profile/profile_screen.dart';
 import '../../features/shell/app_shell.dart';
+import '../../features/shell/record_or_manage_screen.dart';
 import '../../features/shell/splash_screen.dart';
 
 /// authControllerProvider가 바뀔 때마다 GoRouter의 redirect를 다시 평가시키는
@@ -24,31 +28,47 @@ final Provider<_AuthRefreshNotifier> _authRefreshProvider = Provider<_AuthRefres
   return notifier;
 });
 
+/// 로그인 없이는 볼 수 없는 경로. 그 외(홈/암장/더보기/공지 등)는 게스트도 접근 가능 —
+/// 홈 화면 안에서 개인화 섹션(즐겨찾기/스트릭/친구활동)만 로그인을 유도한다.
+const _authRequiredPaths = {'/profile', '/record'};
+
 final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/home',
     refreshListenable: ref.read(_authRefreshProvider),
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
       final loggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
       final atSplash = state.matchedLocation == '/splash';
+      final requiresAuth = _authRequiredPaths.contains(state.matchedLocation);
 
       return switch (authState) {
         AuthChecking() => atSplash ? null : '/splash',
-        AuthUnauthenticated() => loggingIn ? null : '/login',
-        AuthAuthenticated() => (loggingIn || atSplash) ? '/feed' : null,
+        AuthUnauthenticated() => requiresAuth ? '/login' : (atSplash ? '/home' : null),
+        AuthAuthenticated() => (loggingIn || atSplash) ? '/home' : null,
       };
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
+      GoRoute(
+        path: '/notice/:id',
+        builder: (context, state) => NoticeDetailScreen(
+          noticeId: state.pathParameters['id']!,
+          notice: state.extra as Notice?,
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/feed', builder: (_, _) => const FeedScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (_, _) => const HomeScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/gym', builder: (_, _) => const GymScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/record', builder: (_, _) => const RecordScreen())]),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/record', builder: (_, _) => const RecordOrManageScreen())],
+          ),
+          StatefulShellBranch(routes: [GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (_, _) => const MoreScreen())]),
         ],
       ),
     ],

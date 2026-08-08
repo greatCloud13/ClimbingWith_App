@@ -11,6 +11,8 @@
 5. 응답은 최대 3문장으로. 안 되면 5개 글머리 기호까지만 사용한다.
 6. 서버는 거의 완성 상태로 별도 위치에 존재한다. 개발 중 필요한 API는 구체적으로 요청하면 제공받는 방식으로 진행한다. 아직 없는 API는 요청 후 구현되어 제공된다.
 7. 다음 작업(특히 새 단계로 넘어가는 작업)은 진행 전에 먼저 보고하고 승인을 받는다.
+8. 백엔드 버그/API 요청사항은 CLAUDE.md에 적지 않고 `reports/YYYY-MM-DD_설명.md` 형태의 별도 보고서 파일로 제출한다 (2026-08-08부터 적용). CLAUDE.md는 확정된 사실만 기록.
+9. 화면 디자인/레이아웃은 사용자가 직접 설계한다. 사용자가 레퍼런스(이미지 등)와 함께 구체적인 스펙을 주면 그 스펙대로 구현하고, 스펙에 없는 요소를 임의로 추가하지 않는다. 화면 관련 버그/이슈도 사용자가 해결 후 보고하면 그때 반영한다.
 
 ## AI 티(AI-generated 느낌) 방지 원칙
 
@@ -63,10 +65,17 @@ lib/
       domain/        # current_user.dart
       application/   # auth_state.dart, auth_controller.dart, auth_providers.dart
       presentation/  # login_screen.dart, signup_screen.dart
-    feed/            # feed_screen.dart — 커뮤니티 피드
+    feed/            # feed_screen.dart — 커뮤니티 피드 (현재 라우팅 미연결, 보류)
     gym/             # gym_screen.dart — 클라이밍장/루트 정보
+    gym_manage/      # gym_manage_screen.dart — GYM_MANAGER 전용 (최소 구현)
+    home/
+      data/          # home_mock_data.dart — 즐겨찾기/공지 목업
+      domain/        # notice.dart, favorite_gym.dart
+      presentation/  # home_screen.dart, notice_detail_screen.dart
+    more/            # more_screen.dart (최소 구현)
+    profile/         # profile_screen.dart (최소 구현, 로그아웃 포함)
     record/          # record_screen.dart — 완등 기록/랭킹
-    shell/           # app_shell.dart, splash_screen.dart — 바텀 네비게이션 셸
+    shell/           # app_shell.dart, splash_screen.dart, record_or_manage_screen.dart
   main.dart          # ProviderScope + MaterialApp.router
 ```
 
@@ -77,20 +86,29 @@ lib/
 - **세션 저장**: 로그인 성공 시 토큰 + 사용자 정보(username/nickname/role/managedGymId)를 `flutter_secure_storage`에 함께 저장. **주의**: 백엔드에 세션 복원용 "내 정보 조회"(`/api/auth/me` 등) API가 아직 없어서, 앱 재시작 시 로그인 응답에서 받은 사용자 정보를 그대로 복원하는 방식으로 구현함 (네트워크 재검증 없음). 저장된 토큰이 실제로는 만료됐더라도 앱은 우선 로그인된 것처럼 보여주고, 이후 첫 인증 필요 API 호출이 401을 받으면 그때 강제 로그아웃된다. `/api/auth/me`가 생기면 앱 시작 시 그 API로 세션을 검증하는 방식으로 교체 권장.
 - **토큰 만료**: 만료시간 필드가 아직 확정되지 않아 클라이언트에서 만료를 미리 계산하지 않음. 모든 인증 필요 요청은 `DioClient`가 토큰을 자동 첨부하고, 401 응답을 받으면 인터셉터가 세션을 지우고 로그인 화면으로 돌려보낸다.
 - **에러 메시지**: 에러 응답 포맷은 `{success, data, error: {code, message}}`로 실제 백엔드 호출로 확인 완료 (성공 응답은 래핑 없이 flat — 예: 로그인 성공 시 `{token, username, role, nickname, managedGymId}` 그대로). [api_exception.dart](lib/core/network/api_exception.dart)에서 `error.message`를 우선 사용하고, 혹시 모를 다른 포맷(`message`, `errors[].defaultMessage`)도 폴백으로 시도함.
-- **로그아웃**: 피드 화면 상단 아이콘에 임시로 배치 (추후 프로필/설정 화면으로 이동 예정)
+- **로그아웃**: 프로필 화면으로 이동 배치
 - **CORS**: 로컬 개발 시 Flutter 웹(`localhost:8765`)과 Spring 백엔드(`localhost:8080`)가 다른 origin이라 백엔드에 CORS 허용 설정이 필요함 (2026-08-08 백엔드에 추가 완료, 확인함). 모바일 빌드에는 해당 없음(CORS는 브라우저 전용 정책).
 
-### 확인된 백엔드 이슈 (클라이언트에서 고칠 수 없음, 백엔드 확인 필요)
+> **백엔드에 요청/보고가 필요한 사항은 이 문서가 아니라 [`reports/`](reports/) 아래 날짜별 보고서 파일로 관리한다.** CLAUDE.md는 확정된 사실만 기록.
 
-- **회원가입 유효성 검증 미작동**: `POST /api/auth/signup`에 DTO 제약(아이디 4~20자, 이메일 형식, 비밀번호 8~20자)을 위반하는 값(`username: "a"`, `email: "not-an-email"`, `password: "123"`)을 보내도 200과 함께 가입이 성공함. 컨트롤러에 `@Valid`가 빠졌거나 예외 핸들러가 `MethodArgumentNotValidException`을 못 잡는 것으로 추정. 이 과정에서 실제로 `username: "a"` 테스트 계정이 생성됐으니 정리 필요.
-- **로그인 실패 시 500 반환**: 존재하지 않는/틀린 비밀번호로 로그인하면 401이 아니라 500 `SERVER_ERROR`가 내려옴. 인증 실패를 예외로 처리하지 않고 그대로 흘려보내는 것으로 추정.
+## 네비게이션 구조 (5탭) + 게스트 접근
+
+바텀탭: 홈 / 암장 / 운동기록(또는 암장관리) / 프로필 / 더보기. 4번째 탭은 `CurrentUser.role`이 `GYM_MANAGER`면 "암장관리"(`GymManageScreen`)로, 그 외엔 "운동기록"(`RecordScreen`)으로 내용과 라벨·아이콘이 함께 바뀐다 — 경로(`/record`)는 고정, [record_or_manage_screen.dart](lib/features/shell/record_or_manage_screen.dart)에서 분기.
+
+**로그인 없이도 앱 사용 가능(게스트 모드)**: 앱을 켰을 때 첫 화면은 로그인이 아니라 홈이다. `/profile`, `/record`만 로그인을 요구하고(`_authRequiredPaths`, [app_router.dart](lib/core/router/app_router.dart)), `/home`·`/gym`·`/more`는 게스트도 접근 가능. 홈 화면 안에서 개인화 섹션(즐겨찾기 클라이밍장/스트릭/친구활동)은 로그인 상태일 때만 보이고, 비로그인 시 그 자리에 로그인 유도 카드(`_GuestPromptCard`)가 대신 표시된다.
+
+- `/home` — [home_screen.dart](lib/features/home/presentation/home_screen.dart): "오늘은 어느 암장으로 가실건가요?" 헤더 + 알림 버튼(공개), 주요 공지 자동 회전 슬라이드(공개, 탭 시 `/notice/:id`로 이동), 그리고 로그인 시에만: 연속방문 스트릭 카드, 즐겨찾기 클라이밍장 가로 카드, 친구 활동 가로 카드. 즐겨찾기/공지/스트릭/친구활동 모두 API 부재로 목업 데이터 사용 중 (`reports/` 참고).
+- `/gym`, `/record` — 기존 GymScreen/RecordScreen 재사용
+- `/profile`, `/more` — 최소 구현 (상세 디자인은 사용자가 별도 설계 예정)
+- 기존 `FeedScreen`(커뮤니티 피드, [feed_screen.dart](lib/features/feed/feed_screen.dart))은 5탭 구성에서 빠져 현재 라우팅에 연결되어 있지 않음 — 삭제하지 않고 보류 (재사용 여부 확인 필요)
 
 ## 남은 작업 순서
 
 1. ~~인증~~ (완료)
-2. ~~go_router 전환~~ (완료 — `/splash`, `/login`, `/signup`, `StatefulShellRoute`로 `/feed`·`/gym`·`/record`)
-3. 화면별 API 연동 — 클라이밍장 → 피드 → 기록 순, 로딩/에러/빈 상태 포함
-4. 테스트/CI + 배포 설정
+2. ~~go_router 전환~~ (완료)
+3. ~~5탭 구조 + 홈 화면 + 게스트 접근~~ (완료 — 상세 화면 디자인은 사용자 설계 예정)
+4. 화면별 API 연동 (즐겨찾기/공지/스트릭/친구활동 API 등 `reports/` 요청사항 회신 대기)
+5. 테스트/CI + 배포 설정
 
 ## 백엔드 연동 방식
 
