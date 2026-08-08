@@ -17,15 +17,16 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _notificationsTapped(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('알림 화면은 준비 중입니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('알림 화면은 준비 중입니다.')));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isAuthenticated = ref.watch(authControllerProvider) is AuthAuthenticated;
+    final isAuthenticated =
+        ref.watch(authControllerProvider) is AuthAuthenticated;
 
     return CustomScrollView(
       slivers: [
@@ -64,7 +65,8 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: mockFriendActivities.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, i) => _FriendActivityCard(activity: mockFriendActivities[i]),
+                itemBuilder: (context, i) =>
+                    _FriendActivityCard(activity: mockFriendActivities[i]),
               ),
             ),
           ),
@@ -76,7 +78,8 @@ class HomeScreen extends ConsumerWidget {
               separatorBuilder: (_, _) => const SizedBox(height: 16),
               itemBuilder: (context, i) => _GymFeedCard(
                 gym: mockFavoriteGyms[i],
-                onNoticeTap: () => _openNotice(context, mockFavoriteGyms[i].notice),
+                onNoticeTap: () =>
+                    _openNotice(context, mockFavoriteGyms[i].notice),
               ),
             ),
           ),
@@ -115,15 +118,25 @@ class _StreakStatCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
           child: Row(
             children: [
-              const Icon(Icons.local_fire_department_rounded, color: AppColors.holdMagenta, size: 28),
+              const Icon(
+                Icons.local_fire_department_rounded,
+                color: AppColors.holdMagenta,
+                size: 28,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('$mockStreakDays일 연속 방문 중', style: theme.textTheme.titleMedium),
+                    Text(
+                      '$mockStreakDays일 연속 방문 중',
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 2),
-                    Text('이번달 완등 $mockMonthlyClimbCount회', style: theme.textTheme.bodyMedium),
+                    Text(
+                      '이번달 완등 $mockMonthlyClimbCount회',
+                      style: theme.textTheme.bodyMedium,
+                    ),
                   ],
                 ),
               ),
@@ -158,7 +171,10 @@ class _FriendActivityCard extends StatelessWidget {
             backgroundColor: activity.accent.withValues(alpha: 0.18),
             child: Text(
               activity.friendNickname.characters.first,
-              style: TextStyle(color: activity.accent, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: activity.accent,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -205,7 +221,7 @@ class _GymFeedCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              onTap: () => context.go('/gym'),
+              onTap: () => context.push('/gym/${gym.id}'),
               borderRadius: BorderRadius.circular(8),
               child: Row(
                 children: [
@@ -218,13 +234,16 @@ class _GymFeedCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textTertiary,
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
             InkWell(
-              onTap: () => context.go('/gym'),
+              onTap: () => context.push('/gym/${gym.id}'),
               borderRadius: BorderRadius.circular(14),
               child: AspectRatio(
                 aspectRatio: 16 / 10,
@@ -234,11 +253,18 @@ class _GymFeedCard extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [gym.accent.withValues(alpha: 0.22), AppColors.surfaceElevated],
+                      colors: [
+                        gym.accent.withValues(alpha: 0.22),
+                        AppColors.surfaceElevated,
+                      ],
                     ),
                   ),
                   child: Center(
-                    child: Icon(Icons.terrain_rounded, color: gym.accent.withValues(alpha: 0.7), size: 40),
+                    child: Icon(
+                      Icons.terrain_rounded,
+                      color: gym.accent.withValues(alpha: 0.7),
+                      size: 40,
+                    ),
                   ),
                 ),
               ),
@@ -248,7 +274,10 @@ class _GymFeedCard extends StatelessWidget {
               onTap: onNoticeTap,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceElevated,
                   borderRadius: BorderRadius.circular(12),
@@ -268,12 +297,25 @@ class _GymFeedCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(gym.notice.title, style: theme.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          Text(gym.notice.subtitle, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(
+                            gym.notice.title,
+                            style: theme.textTheme.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            gym.notice.subtitle,
+                            style: theme.textTheme.bodyMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textTertiary,
+                    ),
                   ],
                 ),
               ),

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 
 class _Gym {
   const _Gym({
+    required this.id,
     required this.name,
     required this.area,
     required this.tags,
@@ -12,6 +14,7 @@ class _Gym {
     required this.difficultyMix,
   });
 
+  final String id;
   final String name;
   final String area;
   final List<String> tags;
@@ -23,6 +26,7 @@ class _Gym {
 
 const _gyms = [
   _Gym(
+    id: 'seongsu',
     name: '락클라임 성수',
     area: '성수동 · 도보 5분',
     tags: ['볼더링', '초보환영'],
@@ -32,6 +36,7 @@ const _gyms = [
     difficultyMix: [0.3, 0.4, 0.2, 0.1],
   ),
   _Gym(
+    id: 'hongdae',
     name: '그립하우스 홍대',
     area: '홍대입구 · 도보 8분',
     tags: ['볼더링', '리드', '신규셋팅'],
@@ -41,6 +46,7 @@ const _gyms = [
     difficultyMix: [0.15, 0.35, 0.35, 0.15],
   ),
   _Gym(
+    id: 'gangnam',
     name: '볼더베이스 강남',
     area: '강남역 · 도보 3분',
     tags: ['볼더링', '24시간'],
@@ -84,51 +90,78 @@ class _GymCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => context.push('/gym/${gym.id}'),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(gym.name, style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 2),
+                        Text(gym.area, style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                  _CrowdPill(
+                    crowd: gym.crowd,
+                    label: gym.crowdLabel,
+                    accent: gym.accent,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                children: gym.tags
+                    .map(
+                      (t) => Chip(
+                        label: Text(t),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+              Text('난이도 분포', style: theme.textTheme.labelSmall),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 8,
+                  child: Row(
                     children: [
-                      Text(gym.name, style: theme.textTheme.titleLarge),
-                      const SizedBox(height: 2),
-                      Text(gym.area, style: theme.textTheme.bodyMedium),
+                      Expanded(
+                        flex: (gym.difficultyMix[0] * 100).round(),
+                        child: Container(color: AppColors.gradeEasy),
+                      ),
+                      Expanded(
+                        flex: (gym.difficultyMix[1] * 100).round(),
+                        child: Container(color: AppColors.gradeMid),
+                      ),
+                      Expanded(
+                        flex: (gym.difficultyMix[2] * 100).round(),
+                        child: Container(color: AppColors.gradeHard),
+                      ),
+                      Expanded(
+                        flex: (gym.difficultyMix[3] * 100).round(),
+                        child: Container(color: AppColors.gradeExtreme),
+                      ),
                     ],
                   ),
                 ),
-                _CrowdPill(crowd: gym.crowd, label: gym.crowdLabel, accent: gym.accent),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              children: gym.tags.map((t) => Chip(label: Text(t), visualDensity: VisualDensity.compact)).toList(),
-            ),
-            const SizedBox(height: 12),
-            Text('난이도 분포', style: theme.textTheme.labelSmall),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: SizedBox(
-                height: 8,
-                child: Row(
-                  children: [
-                    Expanded(flex: (gym.difficultyMix[0] * 100).round(), child: Container(color: AppColors.gradeEasy)),
-                    Expanded(flex: (gym.difficultyMix[1] * 100).round(), child: Container(color: AppColors.gradeMid)),
-                    Expanded(flex: (gym.difficultyMix[2] * 100).round(), child: Container(color: AppColors.gradeHard)),
-                    Expanded(flex: (gym.difficultyMix[3] * 100).round(), child: Container(color: AppColors.gradeExtreme)),
-                  ],
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -136,7 +169,11 @@ class _GymCard extends StatelessWidget {
 }
 
 class _CrowdPill extends StatelessWidget {
-  const _CrowdPill({required this.crowd, required this.label, required this.accent});
+  const _CrowdPill({
+    required this.crowd,
+    required this.label,
+    required this.accent,
+  });
 
   final double crowd;
   final String label;
@@ -153,9 +190,20 @@ class _CrowdPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 5),
-          Text(label, style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: TextStyle(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

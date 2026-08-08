@@ -102,13 +102,28 @@ lib/
 - `/profile`, `/more` — 최소 구현 (상세 디자인은 사용자가 별도 설계 예정)
 - 기존 `FeedScreen`(커뮤니티 피드, [feed_screen.dart](lib/features/feed/feed_screen.dart))은 5탭 구성에서 빠져 현재 라우팅에 연결되어 있지 않음 — 삭제하지 않고 보류 (재사용 여부 확인 필요)
 
+## 암장 상세 / 섹터 / 문제 리스트
+
+홈의 즐겨찾기 카드, 암장 목록(`/gym`)의 카드 모두 같은 `gymId`로 `/gym/:id`(상세)로 연결된다. 상세에서 섹터를 탭하면 `/gym/:id/sector/:sectorId`(문제 리스트)로 이동.
+
+- [gym_detail_screen.dart](lib/features/gym/presentation/gym_detail_screen.dart): 사진 갤러리(좌우 스와이프, `_GymPhotoGallery`), 우측 상단 즐겨찾기(별) · 알림구독(종) 토글, 로고, 영업시간, 주소, [길찾기(스텁)][가격보기] 버튼 나란히 — 이용권(`PricePlan`)은 상시 노출 대신 "가격보기" 탭 시 바텀시트로 표시, 해시태그, **난이도 체계**, 섹터 리스트
+- **암장 종류(`GymType`: boulder/lead/both, 백엔드 enum과 대응)에 따라 난이도 체계 표시 방식이 다르다** ([gym_type.dart](lib/features/gym/domain/gym_type.dart)):
+  - `boulder`: 색 스트립만 (`_BoulderLevelStrip`) — 왼쪽(쉬움) → 오른쪽(어려움), 암장마다 단계 수·색이 다름
+  - `lead`: 기존 라벨+색 원형 리스트만 (`_LeadLevelList`)
+  - `both`: 둘 다 갖고 있고 `_DifficultySection`에서 `PageView`로 좌우 스와이프 전환 (볼더/리드 표시 인디케이터 포함) — [gym_detail_mock_data.dart](lib/features/gym/data/gym_detail_mock_data.dart)에서 그립하우스 홍대가 `both` 예시
+  - `GymDetail.boulderDifficultySystem` / `leadDifficultySystem`은 각각 `DifficultyLevel {label, color}` 리스트. 앱 공통 UI 컬러(AppColors.hold*)와는 별개 개념
+  - 섹터도 `ClimbingDiscipline`(boulder/lead)을 가지며, `both` 암장의 섹터 리스트에는 볼더/리드 태그가 붙는다
+- [sector_problems_screen.dart](lib/features/gym/presentation/sector_problems_screen.dart): 섹터 안 문제(`ClimbingProblem`) 리스트 — 등급, 테이프 색, 셋터, 셋팅일
+- 즐겨찾기 별/알림 토글, 길찾기 버튼은 로컬 state·스텁뿐 (API·지도 연동 없음, 새로고침 시 초기화) — `reports/` 참고
+
 ## 남은 작업 순서
 
 1. ~~인증~~ (완료)
 2. ~~go_router 전환~~ (완료)
 3. ~~5탭 구조 + 홈 화면 + 게스트 접근~~ (완료 — 상세 화면 디자인은 사용자 설계 예정)
-4. 화면별 API 연동 (즐겨찾기/공지/스트릭/친구활동 API 등 `reports/` 요청사항 회신 대기)
-5. 테스트/CI + 배포 설정
+4. ~~암장 상세 / 섹터 / 문제 리스트~~ (완료 — Mock 기반)
+5. 화면별 API 연동 (즐겨찾기/공지/스트릭/친구활동/암장상세/섹터/문제 API 등 `reports/` 요청사항 회신 대기)
+6. 테스트/CI + 배포 설정
 
 ## 백엔드 연동 방식
 

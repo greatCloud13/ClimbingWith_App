@@ -37,9 +37,9 @@ const Notice _noticeGangnam = Notice(
 const List<Notice> mockNotices = [_noticeSeongsu, _noticeHongdae, _noticeGangnam];
 
 const List<FavoriteGym> mockFavoriteGyms = [
-  FavoriteGym(name: '락클라임 성수', area: '성수동', accent: AppColors.holdLime, notice: _noticeSeongsu),
-  FavoriteGym(name: '그립하우스 홍대', area: '홍대입구', accent: AppColors.holdMagenta, notice: _noticeHongdae),
-  FavoriteGym(name: '볼더베이스 강남', area: '강남역', accent: AppColors.holdCyan, notice: _noticeGangnam),
+  FavoriteGym(id: 'seongsu', name: '락클라임 성수', area: '성수동', accent: AppColors.holdLime, notice: _noticeSeongsu),
+  FavoriteGym(id: 'hongdae', name: '그립하우스 홍대', area: '홍대입구', accent: AppColors.holdMagenta, notice: _noticeHongdae),
+  FavoriteGym(id: 'gangnam', name: '볼더베이스 강남', area: '강남역', accent: AppColors.holdCyan, notice: _noticeGangnam),
 ];
 
 /// 연속 방문일 등 스트릭 통계 — 완등 기록 API 연동 전까지 임시 목업.
