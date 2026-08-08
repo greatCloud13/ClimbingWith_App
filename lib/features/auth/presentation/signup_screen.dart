@@ -41,17 +41,23 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       _errorMessage = null;
     });
     try {
-      final message = await ref.read(authControllerProvider.notifier).signUp(
+      final message = await ref
+          .read(authControllerProvider.notifier)
+          .signUp(
             username: _usernameController.text.trim(),
             nickname: _nicknameController.text.trim(),
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       context.pop();
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.message);
+    } catch (e) {
+      setState(() => _errorMessage = '회원가입 중 문제가 발생했습니다. 다시 시도해주세요.');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -72,22 +78,32 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 children: [
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(labelText: '아이디', hintText: '4~20자'),
+                    decoration: const InputDecoration(
+                      labelText: '아이디',
+                      hintText: '4~20자',
+                    ),
                     validator: (v) {
                       final value = v?.trim() ?? '';
                       if (value.isEmpty) return '아이디는 필수입니다.';
-                      if (value.length < 4 || value.length > 20) return '아이디는 4~20자여야 합니다.';
+                      if (value.length < 4 || value.length > 20) {
+                        return '아이디는 4~20자여야 합니다.';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nicknameController,
-                    decoration: const InputDecoration(labelText: '닉네임', hintText: '4~20자'),
+                    decoration: const InputDecoration(
+                      labelText: '닉네임',
+                      hintText: '4~20자',
+                    ),
                     validator: (v) {
                       final value = v?.trim() ?? '';
                       if (value.isEmpty) return '닉네임은 필수입니다.';
-                      if (value.length < 4 || value.length > 20) return '닉네임은 4~20자여야 합니다.';
+                      if (value.length < 4 || value.length > 20) {
+                        return '닉네임은 4~20자여야 합니다.';
+                      }
                       return null;
                     },
                   ),
@@ -99,19 +115,26 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     validator: (v) {
                       final value = v?.trim() ?? '';
                       if (value.isEmpty) return '이메일은 필수입니다.';
-                      if (!_emailRegExp.hasMatch(value)) return '올바르지 않은 이메일 형식입니다.';
+                      if (!_emailRegExp.hasMatch(value)) {
+                        return '올바르지 않은 이메일 형식입니다.';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: '비밀번호', hintText: '8~20자'),
+                    decoration: const InputDecoration(
+                      labelText: '비밀번호',
+                      hintText: '8~20자',
+                    ),
                     obscureText: true,
                     validator: (v) {
                       final value = v ?? '';
                       if (value.isEmpty) return '비밀번호는 필수입니다.';
-                      if (value.length < 8 || value.length > 20) return '비밀번호는 8~20자여야 합니다.';
+                      if (value.length < 8 || value.length > 20) {
+                        return '비밀번호는 8~20자여야 합니다.';
+                      }
                       return null;
                     },
                   ),
@@ -119,7 +142,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _errorMessage!,
-                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -130,7 +156,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10120A)),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF10120A),
+                            ),
                           )
                         : const Text('가입하기'),
                   ),

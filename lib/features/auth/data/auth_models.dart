@@ -12,11 +12,11 @@ class SignUpRequest {
   final String password;
 
   Map<String, dynamic> toJson() => {
-        'username': username,
-        'nickname': nickname,
-        'email': email,
-        'password': password,
-      };
+    'username': username,
+    'nickname': nickname,
+    'email': email,
+    'password': password,
+  };
 }
 
 class LoginRequest {
@@ -25,10 +25,7 @@ class LoginRequest {
   final String username;
   final String password;
 
-  Map<String, dynamic> toJson() => {
-        'username': username,
-        'password': password,
-      };
+  Map<String, dynamic> toJson() => {'username': username, 'password': password};
 }
 
 /// POST /api/auth/login 응답.
@@ -51,10 +48,10 @@ class LoginResponse {
   final int? managedGymId;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
-        token: json['token'] as String,
-        username: json['username'] as String,
-        role: json['role'] as String,
-        nickname: json['nickname'] as String,
-        managedGymId: json['managedGymId'] as int?,
-      );
+    token: json['token'] as String,
+    username: json['username'] as String,
+    role: json['role'] as String,
+    nickname: json['nickname'] as String,
+    managedGymId: json['managedGymId'] as int?,
+  );
 }

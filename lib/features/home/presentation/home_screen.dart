@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -263,7 +265,6 @@ class _GymFeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final notice = gymCard.notices.isNotEmpty ? gymCard.notices.first : null;
 
     return Card(
       child: Padding(
@@ -317,59 +318,150 @@ class _GymFeedCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (notice != null) ...[
+            if (gymCard.notices.isNotEmpty) ...[
               const SizedBox(height: 12),
-              InkWell(
-                onTap: () => _openNotice(context, notice),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              notice.noticeTitle,
-                              style: theme.textTheme.titleMedium,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              notice.date,
-                              style: theme.textTheme.bodyMedium,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textTertiary,
-                      ),
-                    ],
-                  ),
-                ),
+              _GymNoticeCarousel(
+                notices: gymCard.notices,
+                accent: accent,
+                onNoticeTap: (notice) => _openNotice(context, notice),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 암장 카드에 종속된 공지 슬라이드 — 3초마다 다음 공지로 자동 전환된다.
+/// 공지가 1개뿐이면 넘기지 않고 고정해서 보여준다.
+class _GymNoticeCarousel extends StatefulWidget {
+  const _GymNoticeCarousel({
+    required this.notices,
+    required this.accent,
+    required this.onNoticeTap,
+  });
+
+  final List<HomeNoticeSummary> notices;
+  final Color accent;
+  final ValueChanged<HomeNoticeSummary> onNoticeTap;
+
+  @override
+  State<_GymNoticeCarousel> createState() => _GymNoticeCarouselState();
+}
+
+class _GymNoticeCarouselState extends State<_GymNoticeCarousel> {
+  final _controller = PageController();
+  Timer? _timer;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.notices.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (!_controller.hasClients) return;
+        _index = (_index + 1) % widget.notices.length;
+        _controller.animateToPage(
+          _index,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.notices.length == 1) {
+      return _NoticeRow(
+        notice: widget.notices.first,
+        accent: widget.accent,
+        onTap: widget.onNoticeTap,
+      );
+    }
+
+    return SizedBox(
+      height: 72,
+      child: PageView.builder(
+        controller: _controller,
+        itemCount: widget.notices.length,
+        onPageChanged: (i) => _index = i,
+        itemBuilder: (context, i) => _NoticeRow(
+          notice: widget.notices[i],
+          accent: widget.accent,
+          onTap: widget.onNoticeTap,
+        ),
+      ),
+    );
+  }
+}
+
+class _NoticeRow extends StatelessWidget {
+  const _NoticeRow({
+    required this.notice,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final HomeNoticeSummary notice;
+  final Color accent;
+  final ValueChanged<HomeNoticeSummary> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () => onTap(notice),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 32,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notice.noticeTitle,
+                    style: theme.textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notice.date,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textTertiary,
+            ),
           ],
         ),
       ),

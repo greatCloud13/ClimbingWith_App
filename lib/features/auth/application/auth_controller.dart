@@ -16,15 +16,22 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> _restore() async {
     try {
       final user = await _repository.restoreSession();
-      state = user == null ? const AuthUnauthenticated() : AuthAuthenticated(user);
+      state = user == null
+          ? const AuthUnauthenticated()
+          : AuthAuthenticated(user);
     } catch (_) {
       // 저장소를 읽지 못하면(플랫폼 채널 미지원 환경, 손상된 데이터 등) 로그아웃 상태로 취급한다.
       state = const AuthUnauthenticated();
     }
   }
 
-  Future<void> login({required String username, required String password}) async {
-    final user = await _repository.login(LoginRequest(username: username, password: password));
+  Future<void> login({
+    required String username,
+    required String password,
+  }) async {
+    final user = await _repository.login(
+      LoginRequest(username: username, password: password),
+    );
     state = AuthAuthenticated(user);
   }
 
@@ -35,7 +42,12 @@ class AuthController extends StateNotifier<AuthState> {
     required String password,
   }) {
     return _repository.signUp(
-      SignUpRequest(username: username, nickname: nickname, email: email, password: password),
+      SignUpRequest(
+        username: username,
+        nickname: nickname,
+        email: email,
+        password: password,
+      ),
     );
   }
 

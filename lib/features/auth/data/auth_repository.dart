@@ -5,8 +5,8 @@ import 'auth_models.dart';
 
 class AuthRepository {
   AuthRepository({required AuthApi api, required TokenStorage tokenStorage})
-      : _api = api,
-        _tokenStorage = tokenStorage;
+    : _api = api,
+      _tokenStorage = tokenStorage;
 
   final AuthApi _api;
   final TokenStorage _tokenStorage;
