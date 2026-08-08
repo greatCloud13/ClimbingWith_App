@@ -43,7 +43,9 @@ class AppTheme {
       ),
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: AppColors.surfaceElevated,
-        labelStyle: base.textTheme.labelSmall?.copyWith(color: AppColors.textPrimary),
+        labelStyle: base.textTheme.labelSmall?.copyWith(
+          color: AppColors.textPrimary,
+        ),
         side: const BorderSide(color: AppColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
@@ -52,7 +54,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
@@ -73,8 +78,14 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontFamily: 'NotoSansKR'),
-        hintStyle: const TextStyle(color: AppColors.textTertiary, fontFamily: 'NotoSansKR'),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontFamily: 'NotoSansKR',
+        ),
+        hintStyle: const TextStyle(
+          color: AppColors.textTertiary,
+          fontFamily: 'NotoSansKR',
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -83,14 +94,24 @@ class AppTheme {
           disabledBackgroundColor: AppColors.surfaceElevated,
           disabledForegroundColor: AppColors.textTertiary,
           minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontFamily: 'NotoSansKR', fontWeight: FontWeight.w700, fontSize: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'NotoSansKR',
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.holdLime,
-          textStyle: const TextStyle(fontFamily: 'NotoSansKR', fontWeight: FontWeight.w600, fontSize: 13),
+          textStyle: const TextStyle(
+            fontFamily: 'NotoSansKR',
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
         ),
       ),
     );

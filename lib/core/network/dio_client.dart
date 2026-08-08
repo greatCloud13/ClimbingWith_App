@@ -7,7 +7,7 @@ import 'token_storage.dart';
 /// 만료를 미리 계산하지 않고, 서버가 401을 내려줄 때 반응적으로 처리한다.
 class DioClient {
   DioClient({required TokenStorage tokenStorage, required this.onUnauthorized})
-      : _tokenStorage = tokenStorage {
+    : _tokenStorage = tokenStorage {
     dio = Dio(
       BaseOptions(
         baseUrl: AppConfig.apiBaseUrl,

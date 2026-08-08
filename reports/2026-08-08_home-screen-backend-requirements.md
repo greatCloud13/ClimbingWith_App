@@ -6,17 +6,12 @@
 
 ## 1. 신규 API 요청
 
-### 1-1. 즐겨찾기 클라이밍장 목록
-- **용도**: 홈 화면 상단 "즐겨찾기 클라이밍장" 가로 카드 슬라이드
-- **요청 스펙(제안)**: `GET /api/gyms/favorites` → `[{gymId, name, area, ...}]` (로그인 사용자 기준)
-- **현재 상태**: API 부재로 클라이언트에 목업 데이터 3건으로 임시 구현함 ([home_mock_data.dart](../lib/features/home/data/home_mock_data.dart))
-- **우선순위**: 높음 (홈 화면 핵심 기능)
-
-### 1-2. 주요 공지 목록
-- **용도**: 홈 화면 "주요 공지" 자동 회전 슬라이드, 탭하면 상세로 이동
-- **요청 스펙(제안)**: `GET /api/notices` → `[{id, title, subtitle, body, ...}]`
-- **현재 상태**: API 부재로 목업 데이터 3건으로 임시 구현함
-- **우선순위**: 높음
+### 1-1. 즐겨찾기 클라이밍장 목록 + 암장별 공지 — ✅ 완료 (2026-08-08)
+- **용도**: 홈 화면 "즐겨찾기 클라이밍장" 세로 피드 카드 + 카드 안 공지
+- **제공된 API**: `GET /api/home` → `{gymCardList: [{gymId, gymName, address, imageUrl, notices: [{postId, noticeTitle, date}]}]}` (토큰 기반, 파라미터 없음)
+- **클라이언트 반영 완료**: [home_api.dart](../lib/features/home/data/home_api.dart), [home_providers.dart](../lib/features/home/application/home_providers.dart)
+- **후속 요청 — 공지 상세(본문) 조회**: 카드의 공지는 `noticeTitle`/`date`만 있어 탭했을 때 본문을 보여줄 수 없음. `postId`로 본문을 가져오는 API(예: `GET /api/notices/{postId}`)가 있으면 공지 상세 화면을 완성할 수 있음 — 현재는 "자세한 공지 내용은 곧 제공될 예정입니다" 안내 문구로 대체 중
+- **우선순위**: 중간 (공지 상세 본문만 남음)
 
 ### 1-3. 알림
 - **용도**: 홈 화면 우측 상단 알림 버튼 (읽지 않은 알림 수, 목록)

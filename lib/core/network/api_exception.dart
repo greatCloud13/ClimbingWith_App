@@ -22,11 +22,16 @@ class ApiException implements Exception {
       if (error is Map<String, dynamic>) {
         final message = error['message'] as String?;
         if (message != null && message.isNotEmpty) {
-          return ApiException(message, statusCode: statusCode, errorCode: error['code'] as String?);
+          return ApiException(
+            message,
+            statusCode: statusCode,
+            errorCode: error['code'] as String?,
+          );
         }
       }
 
-      final message = data['message'] as String? ??
+      final message =
+          data['message'] as String? ??
           (error is String ? error : null) ??
           _firstValidationMessage(data);
       if (message != null && message.isNotEmpty) {
@@ -34,7 +39,10 @@ class ApiException implements Exception {
       }
     }
 
-    return ApiException(_fallbackMessage(statusCode, e), statusCode: statusCode);
+    return ApiException(
+      _fallbackMessage(statusCode, e),
+      statusCode: statusCode,
+    );
   }
 
   static String? _firstValidationMessage(Map<String, dynamic> data) {
@@ -42,7 +50,8 @@ class ApiException implements Exception {
     if (errors is List && errors.isNotEmpty) {
       final first = errors.first;
       if (first is Map<String, dynamic>) {
-        return first['defaultMessage'] as String? ?? first['message'] as String?;
+        return first['defaultMessage'] as String? ??
+            first['message'] as String?;
       }
     }
     return null;

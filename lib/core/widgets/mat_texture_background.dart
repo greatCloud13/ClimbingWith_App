@@ -15,11 +15,7 @@ class MatTextureBackground extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Container(color: AppColors.background),
-        Positioned.fill(
-          child: CustomPaint(
-            painter: _DiamondStitchPainter(),
-          ),
-        ),
+        Positioned.fill(child: CustomPaint(painter: _DiamondStitchPainter())),
         child,
       ],
     );
@@ -36,8 +32,16 @@ class _DiamondStitchPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     for (double x = -size.height; x < size.width + size.height; x += _cell) {
-      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), linePaint);
-      canvas.drawLine(Offset(x, 0), Offset(x - size.height, size.height), linePaint);
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x - size.height, size.height),
+        linePaint,
+      );
     }
 
     final vignette = Paint()
@@ -49,7 +53,10 @@ class _DiamondStitchPainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.6));
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height * 0.6), vignette);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height * 0.6),
+      vignette,
+    );
   }
 
   @override

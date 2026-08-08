@@ -12,7 +12,7 @@ import '../../features/auth/domain/current_user.dart';
 /// 로직을 그 API 호출로 교체하는 것이 더 안전하다 (역할 변경 등이 반영됨).
 class TokenStorage {
   TokenStorage({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _tokenKey = 'access_token';
   static const _userKey = 'current_user';

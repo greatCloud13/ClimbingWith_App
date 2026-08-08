@@ -20,7 +20,10 @@ class GradeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _color;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10, vertical: dense ? 3 : 5),
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? 8 : 10,
+        vertical: dense ? 3 : 5,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
