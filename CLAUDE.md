@@ -40,7 +40,10 @@ AI가 만든 UI가 어색해 보이는 이유와 대응 방법을 프로젝트 �
 ## 기술 스택
 
 - **Flutter** (SDK ^3.10.7), Material 3, 다크 테마 고정
-- **상태관리**: `flutter_riverpod` ^2.6.1 (현재 프로토타입 화면은 아직 정적 데이터, provider 미연결 — API 연동 시 도입)
+- **상태관리**: `flutter_riverpod` ^2.6.1 — 인증 플로우부터 실제 provider 연결 시작 (`StateNotifierProvider` 패턴, codegen 없이 수동 작성)
+- **네트워킹**: `dio` ^5.7.0 — 인증 토큰 자동 첨부 + 401 인터셉터
+- **보안 저장소**: `flutter_secure_storage` ^9.2.2 — AccessToken/로그인 사용자 정보 보관 (Keychain/Keystore, 평문 저장 아님)
+- **환경설정**: `--dart-define`으로 API base URL 주입 (백엔드 `.env`에 대응). 기본값 `http://localhost:8080`. `flutter run --dart-define=API_BASE_URL=https://...`로 오버라이드. [app_config.dart](lib/core/config/app_config.dart) 참고 — 대안으로 `flutter_dotenv` 런타임 방식도 있으나, 모바일 앱에 평문 설정 파일을 번들링하지 않아도 되고 실수로 잘못된 서버를 바라볼 위험이 적은 dart-define을 기본 채택
 - **라우팅**: `go_router` ^14.6.2 (의존성만 추가됨, 현재는 `IndexedStack` 기반 바텀 네비게이션으로 단순 구현 — 화면이 늘어나면 go_router로 전환)
 - **폰트**: 로컬 번들 TTF (`assets/fonts/`), 네트워크 페치 없음
 
@@ -49,26 +52,42 @@ AI가 만든 UI가 어색해 보이는 이유와 대응 방법을 프로젝트 �
 ```
 lib/
   core/
-    theme/          # app_colors.dart, app_typography.dart, app_theme.dart — 디자인 토큰, 여기만 참조
+    config/          # app_config.dart — 환경설정 (API base URL 등)
+    network/         # dio_client.dart, token_storage.dart, api_exception.dart
+    theme/           # app_colors.dart, app_typography.dart, app_theme.dart — 디자인 토큰, 여기만 참조
     widgets/         # mat_texture_background.dart, grade_badge.dart 등 공용 위젯
   features/
+    auth/
+      data/          # auth_api.dart, auth_models.dart, auth_repository.dart
+      domain/        # current_user.dart
+      application/   # auth_state.dart, auth_controller.dart, auth_providers.dart
+      presentation/  # login_screen.dart, signup_screen.dart
     feed/            # feed_screen.dart — 커뮤니티 피드
     gym/             # gym_screen.dart — 클라이밍장/루트 정보
     record/          # record_screen.dart — 완등 기록/랭킹
     shell/           # app_shell.dart — 바텀 네비게이션 셸
-  main.dart
+  main.dart          # ProviderScope + AuthGate (로그인 상태에 따라 LoginScreen ↔ AppShell 전환)
 ```
 
-## 현재 구현 상태 (프로토타입)
+## 인증 (구현 완료)
 
-- 피드, 클라이밍장 정보, 기록/랭킹 3개 화면을 정적 목업 데이터로 구현
-- 바텀 네비게이션으로 3개 화면 전환
-- `flutter analyze` 통과, `flutter test` 통과 (기본 렌더링 스모크 테스트)
-- **미구현**: 실제 API 연동, 로딩/에러/빈 상태, 인증, go_router 라우팅, Riverpod provider
+- **API**: `POST /api/auth/signup` `{username, nickname, email, password}` → `{message}` / `POST /api/auth/login` `{username, password}` → `{token, username, role, nickname, managedGymId}`
+- **유효성 검증**: 백엔드 DTO 제약과 동일하게 클라이언트에서도 검증 — username/nickname 4~20자, password 8~20자, email 형식
+- **세션 저장**: 로그인 성공 시 토큰 + 사용자 정보(username/nickname/role/managedGymId)를 `flutter_secure_storage`에 함께 저장. **주의**: 백엔드에 세션 복원용 "내 정보 조회"(`/api/auth/me` 등) API가 아직 없어서, 앱 재시작 시 로그인 응답에서 받은 사용자 정보를 그대로 복원하는 방식으로 구현함 (네트워크 재검증 없음). 저장된 토큰이 실제로는 만료됐더라도 앱은 우선 로그인된 것처럼 보여주고, 이후 첫 인증 필요 API 호출이 401을 받으면 그때 강제 로그아웃된다. `/api/auth/me`가 생기면 앱 시작 시 그 API로 세션을 검증하는 방식으로 교체 권장.
+- **토큰 만료**: 만료시간 필드가 아직 확정되지 않아 클라이언트에서 만료를 미리 계산하지 않음. 모든 인증 필요 요청은 `DioClient`가 토큰을 자동 첨부하고, 401 응답을 받으면 인터셉터가 세션을 지우고 로그인 화면으로 돌려보낸다.
+- **에러 메시지**: 백엔드의 유효성 검증 실패 응답 포맷이 미확정이라 [api_exception.dart](lib/core/network/api_exception.dart)에서 `message`/`error`/`errors[].defaultMessage` 등 알려진 형태를 순서대로 시도하고, 실패하면 상태코드 기반 기본 메시지로 대체함. **실제 에러 응답 포맷이 확정되면 이 파서를 업데이트해야 함.**
+- **로그아웃**: 피드 화면 상단 아이콘에 임시로 배치 (추후 프로필/설정 화면으로 이동 예정)
+
+## 남은 작업 순서
+
+1. ~~인증~~ (완료)
+2. go_router 전환 (화면이 늘어나기 전에 `IndexedStack` → 라우팅 기반으로 교체)
+3. 화면별 API 연동 — 클라이밍장 → 피드 → 기록 순, 로딩/에러/빈 상태 포함
+4. 테스트/CI + 배포 설정
 
 ## 백엔드 연동 방식
 
-백엔드 서버는 이 레포 밖 별도 위치에 이미 존재. 화면 구현 중 특정 API가 필요해지는 시점에 사용자에게 개별 요청 → 제공받아 연동. 없는 API는 요청 후 구현되어 제공됨.
+백엔드 서버는 이 레포 밖 별도 위치에 이미 존재 (Spring Boot, 로컬 개발 중 `localhost:8080`). 화면 구현 중 특정 API가 필요해지는 시점에 사용자에게 개별 요청 → 제공받아 연동. 없는 API는 요청 후 구현되어 제공됨.
 
 ## 실행 방법
 

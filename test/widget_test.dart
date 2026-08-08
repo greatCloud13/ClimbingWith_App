@@ -1,15 +1,40 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:climbing_community_app/core/network/token_storage.dart';
+import 'package:climbing_community_app/features/auth/application/auth_providers.dart';
+import 'package:climbing_community_app/features/auth/domain/current_user.dart';
 import 'package:climbing_community_app/main.dart';
 
+/// 위젯 테스트는 실제 기기 보안 저장소(플랫폼 채널)에 접근할 수 없으므로
+/// 세션이 없는 상태를 즉시 반환하는 가짜 저장소로 교체한다.
+class _FakeTokenStorage implements TokenStorage {
+  @override
+  Future<void> saveSession(String token, CurrentUser user) async {}
+
+  @override
+  Future<String?> readToken() async => null;
+
+  @override
+  Future<CurrentUser?> readUser() async => null;
+
+  @override
+  Future<void> clearSession() async {}
+}
+
 void main() {
-  testWidgets('앱이 피드 탭과 함께 정상적으로 렌더링된다', (WidgetTester tester) async {
-    await tester.pumpWidget(const ClimbingCommunityApp());
+  testWidgets('로그인 전에는 로그인 화면이 보인다', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [tokenStorageProvider.overrideWithValue(_FakeTokenStorage())],
+        child: const ClimbingCommunityApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('클라임로그'), findsOneWidget);
-    expect(find.text('피드'), findsOneWidget);
-    expect(find.text('클라이밍장'), findsOneWidget);
-    expect(find.text('기록'), findsOneWidget);
+    expect(find.text('ClimbingWith'), findsOneWidget);
+    expect(find.text('아이디'), findsOneWidget);
+    expect(find.text('비밀번호'), findsOneWidget);
+    expect(find.text('로그인'), findsOneWidget);
   });
 }

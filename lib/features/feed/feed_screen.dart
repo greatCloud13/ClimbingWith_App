@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/grade_badge.dart';
+import '../auth/application/auth_providers.dart';
 
 class _Post {
   const _Post({
@@ -67,21 +69,26 @@ const _posts = [
   ),
 ];
 
-class FeedScreen extends StatelessWidget {
+class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
           pinned: true,
           backgroundColor: AppColors.background,
-          title: const Text('클라임로그'),
+          title: const Text('ClimbingWith'),
           actions: [
             IconButton(
               onPressed: () {},
               icon: const Icon(Icons.notifications_none_rounded),
+            ),
+            IconButton(
+              onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: '로그아웃',
             ),
             const SizedBox(width: 4),
           ],
