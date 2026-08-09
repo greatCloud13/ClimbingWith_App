@@ -25,6 +25,7 @@ class HomeGymCard {
     required this.address,
     required this.imageUrl,
     required this.notices,
+    this.bookmarkId,
   });
 
   final int gymId;
@@ -33,11 +34,15 @@ class HomeGymCard {
   final String? imageUrl;
   final List<HomeNoticeSummary> notices;
 
+  /// 이 암장 북마크(즐겨찾기) 자체의 id — 해제(DELETE /api/bookmark/{id})에 필요.
+  final int? bookmarkId;
+
   factory HomeGymCard.fromJson(Map<String, dynamic> json) => HomeGymCard(
     gymId: json['gymId'] as int,
     gymName: json['gymName'] as String,
     address: json['address'] as String,
     imageUrl: json['imageUrl'] as String?,
+    bookmarkId: json['bookmarkId'] as int?,
     notices: (json['notices'] as List<dynamic>? ?? [])
         .map((e) => HomeNoticeSummary.fromJson(e as Map<String, dynamic>))
         .toList(),

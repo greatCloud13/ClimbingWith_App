@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/mat_texture_background.dart';
 import '../../auth/application/auth_providers.dart';
@@ -29,6 +30,7 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
   // 있는지로 초기 별 채움 여부를 판단한다. 알림 구독은 여전히 API가 없어
   // 로컬 상태로만 토글한다 (새로고침 시 초기화됨).
   bool? _favoriteOverride;
+  bool _favoriteLoading = false;
   bool _notificationsOn = false;
   int _photoIndex = 0;
 
@@ -42,6 +44,70 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
           data: (cards) => cards.any((c) => c.gymId == numericId),
           orElse: () => false,
         );
+  }
+
+  Future<void> _toggleFavorite(int numericId, bool currentlyFavorite) async {
+    if (ref.read(authControllerProvider) is! AuthAuthenticated) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      return;
+    }
+    setState(() => _favoriteLoading = true);
+    try {
+      final api = ref.read(bookmarkApiProvider);
+      final bookmarkIds = ref.read(bookmarkIdMapProvider);
+      if (!currentlyFavorite) {
+        final bookmarkId = await api.createBookmark(numericId);
+        ref.read(bookmarkIdMapProvider.notifier).state = {
+          ...bookmarkIds,
+          numericId: bookmarkId,
+        };
+        if (mounted) setState(() => _favoriteOverride = true);
+      } else {
+        // 이번 세션에 등록한 북마크는 로컬 맵에 있고, 이전부터 즐겨찾기된
+        // 암장은 GET /api/home의 bookmarkId(카드에 매칭된 값)로 찾는다.
+        int? bookmarkId = bookmarkIds[numericId];
+        if (bookmarkId == null) {
+          final homeCards =
+              ref.read(homeGymCardsProvider).valueOrNull ?? const [];
+          for (final card in homeCards) {
+            if (card.gymId == numericId) {
+              bookmarkId = card.bookmarkId;
+              break;
+            }
+          }
+        }
+        if (bookmarkId == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('즐겨찾기 해제 정보를 찾을 수 없어요. 앱을 다시 시작한 뒤 시도해주세요.'),
+              ),
+            );
+          }
+          return;
+        }
+        await api.deleteBookmark(bookmarkId);
+        final newMap = {...bookmarkIds}..remove(numericId);
+        ref.read(bookmarkIdMapProvider.notifier).state = newMap;
+        if (mounted) setState(() => _favoriteOverride = false);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('즐겨찾기 처리 중 문제가 발생했어요.')));
+      }
+    } finally {
+      if (mounted) setState(() => _favoriteLoading = false);
+    }
   }
 
   void _openDirections(GymDetail gym) {
@@ -110,8 +176,10 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
       return _GymDetailBody(
         gym: gym,
         isFavorite: isFavorite,
+        favoriteLoading: false,
         notificationsOn: _notificationsOn,
         photoIndex: _photoIndex,
+        // 목업 암장은 실제 gymId가 없어 북마크 API를 호출할 수 없다 — 로컬 토글만.
         onFavoriteToggle: () => setState(() => _favoriteOverride = !isFavorite),
         onNotificationToggle: () =>
             setState(() => _notificationsOn = !_notificationsOn),
@@ -129,9 +197,10 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
       data: (gym) => _GymDetailBody(
         gym: gym,
         isFavorite: isFavorite,
+        favoriteLoading: _favoriteLoading,
         notificationsOn: _notificationsOn,
         photoIndex: _photoIndex,
-        onFavoriteToggle: () => setState(() => _favoriteOverride = !isFavorite),
+        onFavoriteToggle: () => _toggleFavorite(numericId, isFavorite),
         onNotificationToggle: () =>
             setState(() => _notificationsOn = !_notificationsOn),
         onPhotoIndexChanged: (i) => setState(() => _photoIndex = i),
@@ -169,6 +238,7 @@ class _GymDetailBody extends StatelessWidget {
   const _GymDetailBody({
     required this.gym,
     required this.isFavorite,
+    required this.favoriteLoading,
     required this.notificationsOn,
     required this.photoIndex,
     required this.onFavoriteToggle,
@@ -181,6 +251,7 @@ class _GymDetailBody extends StatelessWidget {
 
   final GymDetail gym;
   final bool isFavorite;
+  final bool favoriteLoading;
   final bool notificationsOn;
   final int photoIndex;
   final VoidCallback onFavoriteToggle;
@@ -214,13 +285,21 @@ class _GymDetailBody extends StatelessWidget {
               ),
               actions: [
                 IconButton(
-                  onPressed: onFavoriteToggle,
-                  icon: Icon(
-                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: isFavorite
-                        ? const Color(0xFFFFC53D)
-                        : AppColors.textPrimary,
-                  ),
+                  onPressed: favoriteLoading ? null : onFavoriteToggle,
+                  icon: favoriteLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          isFavorite
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: isFavorite
+                              ? const Color(0xFFFFC53D)
+                              : AppColors.textPrimary,
+                        ),
                   tooltip: '즐겨찾기',
                 ),
                 IconButton(

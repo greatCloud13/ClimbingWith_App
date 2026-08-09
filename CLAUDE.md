@@ -121,7 +121,8 @@ lib/
 - [sector_problems_screen.dart](lib/features/gym/presentation/sector_problems_screen.dart): 섹터 안 문제(`ClimbingProblem`) 리스트 — 등급, 테이프 색, 셋터, 셋팅일
 - 알림구독, 길찾기 버튼은 로컬 state·스텁뿐 (API·지도 연동 없음, 새로고침 시 초기화) — `reports/` 참고
 - **암장 상세는 `GET /api/gym/{id}` 실제 연동 완료 (2026-08-09)**: `id`가 정수로 파싱되면 이 API로 실데이터를 가져오고, 그 외(목업 문자열 id)는 기존 `mockGymDetails`를 그대로 씀 — `/gym` 탭(암장 목록)이 아직 전부 목업이라 그 화면에서 넘어오는 id와 실제 백엔드 id가 섞여있어 두 경로를 함께 유지 중. 이 API에는 이용권/난이도체계/섹터별 종목/문제 목록이 없어서, 데이터가 없으면 해당 섹션을 숨기거나 안내 문구로 대체함(가짜 데이터로 채우지 않음).
-- **즐겨찾기 별 표시**: 등록/해제 API가 없어 토글 자체는 여전히 로컬 상태지만, 화면 진입 시 초기값은 홈 즐겨찾기 목록(`GET /api/home`)에 이 암장이 있는지로 판단해서 채워진 상태로 보여줌 (`_resolveFavorite`) — 로그인 상태에서만 조회함
+- **즐겨찾기(북마크) 실연동 완료 (2026-08-10)**: `POST /api/bookmark/{gymId}` → `{id, gymName}`(이 `id`는 북마크 자체의 id, gymId 아님) / `DELETE /api/bookmark/{id}`. 화면 진입 시 초기 별 채움 여부는 홈 즐겨찾기 목록(`GET /api/home`)에 이 암장이 있는지로 판단(`_resolveFavorite`, 로그인 상태에서만 조회).
+  - **해제(DELETE)용 북마크 id 확보**: `GET /api/home`의 `gymCardList[]`에 `bookmarkId` 필드가 직접 추가됨(처음엔 별도 `bookmarkIdList`를 위치로 대응시켰다가, 1:1이 아니어서 명시적 필드로 교체함) — `HomeGymCard.bookmarkId`. 이번 세션에 앱에서 직접 등록한 건 `bookmarkIdMapProvider`, 그 외(이전부터 즐겨찾기된 암장)는 이 필드로 해제 가능.
 - **게시판 (2026-08-09)**: 암장 상세의 "게시판" 버튼 → `/gym/:id/board` ([gym_board_screen.dart](lib/features/gym/presentation/gym_board_screen.dart)). 처음 진입 시 전체 게시글(`GET /api/post/gym/{gymId}`), 상단 태그(전체/공지사항/세팅 일정/분실물 안내/암장 이벤트) 선택 시 서버 필터링 조회(`GET /api/post/gym/{gymId}/posttype/{postType}` — 경로 세그먼트가 `postType`이 아니라 소문자 `posttype`이니 주의). 둘 다 페이지네이션("더 보기"). 목업 암장에는 버튼이 안 보임. 게시글 탭 시 기존 `/notice/:id` 화면 재사용 (본문은 안내 문구로 대체 — 상세 API 없음).
 - **CORS**: 백엔드가 `localhost:3000` origin만 허용하도록 설정됨 (2026-08-09) — 웹 프리뷰 포트를 8765 → 3000으로 맞춤 (`.claude/launch.json`).
 
