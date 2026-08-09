@@ -1,7 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 개발 중인 백엔드가 아직 HTTP(http://localhost:8080 등)라서 cleartext를
+         허용한다. Android 9(API 28)부터 기본이 차단이라 이게 없으면 로그인 등
+         모든 API 요청이 조용히 실패한다. 백엔드가 HTTPS로 바뀌면 이 속성은
+         제거해도 된다(HTTPS는 이 제한과 무관). -->
     <application
         android:label="climbing_community_app"
         android:name="${applicationName}"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

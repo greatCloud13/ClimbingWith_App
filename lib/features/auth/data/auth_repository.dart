@@ -21,7 +21,14 @@ class AuthRepository {
       role: response.role,
       managedGymId: response.managedGymId,
     );
-    await _tokenStorage.saveSession(response.token, user);
+    try {
+      await _tokenStorage.saveSession(response.token, user);
+    } catch (_) {
+      // 세션 저장(보안 저장소 쓰기)이 실패해도 로그인 자체는 성공한 것으로
+      // 처리한다 — 그래야 인증 화면에서 홈으로 넘어간다. 저장 실패 시
+      // 다음 앱 실행 때 재로그인이 필요할 수 있지만, 지금 이 세션까지
+      // 막을 이유는 없다.
+    }
     return user;
   }
 
