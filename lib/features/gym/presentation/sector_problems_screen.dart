@@ -27,62 +27,72 @@ class SectorProblemsScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (resolvedGym == null || resolvedSector == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: Text('섹터 정보를 찾을 수 없습니다.')),
-      );
+      return const Scaffold(body: Center(child: Text('섹터 정보를 찾을 수 없습니다.')));
     }
 
     return Scaffold(
       appBar: AppBar(title: Text(resolvedSector.name)),
       body: MatTextureBackground(
         child: SafeArea(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: resolvedSector.problems.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, i) {
-              final problem = resolvedSector.problems[i];
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+          child: resolvedSector.problems.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      resolvedSector.problemCount > 0
+                          ? '문제 목록은 아직 준비 중입니다. (총 ${resolvedSector.problemCount}개)'
+                          : '등록된 문제가 아직 없어요.',
+                      style: theme.textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: problem.tapeColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.border),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: resolvedSector.problems.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, i) {
+                    final problem = resolvedSector.problems[i];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              problem.grade,
-                              style: theme.textTheme.titleMedium,
+                            Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: problem.tapeColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.border),
+                              ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${problem.setter} 셋팅 · ${problem.setDate}',
-                              style: theme.textTheme.bodyMedium,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    problem.grade,
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${problem.setter} 셋팅 · ${problem.setDate}',
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ),
     );

@@ -84,6 +84,8 @@ lib/
 - **API**: `POST /api/auth/signup` `{username, nickname, email, password}` → `{message}` / `POST /api/auth/login` `{username, password}` → `{token, username, role, nickname, managedGymId}`
 - **유효성 검증**: 백엔드 DTO 제약과 동일하게 클라이언트에서도 검증 — username/nickname 4~20자, password 8~20자, email 형식
 - **세션 저장**: 로그인 성공 시 토큰 + 사용자 정보(username/nickname/role/managedGymId)를 `flutter_secure_storage`에 함께 저장. **주의**: 백엔드에 세션 복원용 "내 정보 조회"(`/api/auth/me` 등) API가 아직 없어서, 앱 재시작 시 로그인 응답에서 받은 사용자 정보를 그대로 복원하는 방식으로 구현함 (네트워크 재검증 없음). 저장된 토큰이 실제로는 만료됐더라도 앱은 우선 로그인된 것처럼 보여주고, 이후 첫 인증 필요 API 호출이 401을 받으면 그때 강제 로그아웃된다. `/api/auth/me`가 생기면 앱 시작 시 그 API로 세션을 검증하는 방식으로 교체 권장.
+  - 보안 저장소 쓰기가 실패해도(플랫폼별 Keystore 이슈 등) 로그인 자체(홈 화면 이동)는 막지 않도록 처리함 ([auth_repository.dart](lib/features/auth/data/auth_repository.dart)) — 저장 실패 시 다음 앱 실행 때 재로그인이 필요할 수 있음
+- **Android cleartext 이슈**: 백엔드가 아직 HTTP(`http://localhost:8080`)라서 Android 9(API 28)+ 기본 정책상 요청이 조용히 막힘 → `AndroidManifest.xml`에 `android:usesCleartextTraffic="true"` 추가함 (2026-08-08). 백엔드가 HTTPS로 바뀌면 제거 가능.
 - **토큰 만료**: 만료시간 필드가 아직 확정되지 않아 클라이언트에서 만료를 미리 계산하지 않음. 모든 인증 필요 요청은 `DioClient`가 토큰을 자동 첨부하고, 401 응답을 받으면 인터셉터가 세션을 지우고 로그인 화면으로 돌려보낸다.
 - **에러 메시지**: 에러 응답 포맷은 `{success, data, error: {code, message}}`로 실제 백엔드 호출로 확인 완료 (성공 응답은 래핑 없이 flat — 예: 로그인 성공 시 `{token, username, role, nickname, managedGymId}` 그대로). [api_exception.dart](lib/core/network/api_exception.dart)에서 `error.message`를 우선 사용하고, 혹시 모를 다른 포맷(`message`, `errors[].defaultMessage`)도 폴백으로 시도함.
 - **로그아웃**: 프로필 화면으로 이동 배치
@@ -117,7 +119,11 @@ lib/
   - `GymDetail.boulderDifficultySystem` / `leadDifficultySystem`은 각각 `DifficultyLevel {label, color}` 리스트. 앱 공통 UI 컬러(AppColors.hold*)와는 별개 개념
   - 섹터도 `ClimbingDiscipline`(boulder/lead)을 가지며, `both` 암장의 섹터 리스트에는 볼더/리드 태그가 붙는다
 - [sector_problems_screen.dart](lib/features/gym/presentation/sector_problems_screen.dart): 섹터 안 문제(`ClimbingProblem`) 리스트 — 등급, 테이프 색, 셋터, 셋팅일
-- 즐겨찾기 별/알림 토글, 길찾기 버튼은 로컬 state·스텁뿐 (API·지도 연동 없음, 새로고침 시 초기화) — `reports/` 참고
+- 알림구독, 길찾기 버튼은 로컬 state·스텁뿐 (API·지도 연동 없음, 새로고침 시 초기화) — `reports/` 참고
+- **암장 상세는 `GET /api/gym/{id}` 실제 연동 완료 (2026-08-09)**: `id`가 정수로 파싱되면 이 API로 실데이터를 가져오고, 그 외(목업 문자열 id)는 기존 `mockGymDetails`를 그대로 씀 — `/gym` 탭(암장 목록)이 아직 전부 목업이라 그 화면에서 넘어오는 id와 실제 백엔드 id가 섞여있어 두 경로를 함께 유지 중. 이 API에는 이용권/난이도체계/섹터별 종목/문제 목록이 없어서, 데이터가 없으면 해당 섹션을 숨기거나 안내 문구로 대체함(가짜 데이터로 채우지 않음).
+- **즐겨찾기 별 표시**: 등록/해제 API가 없어 토글 자체는 여전히 로컬 상태지만, 화면 진입 시 초기값은 홈 즐겨찾기 목록(`GET /api/home`)에 이 암장이 있는지로 판단해서 채워진 상태로 보여줌 (`_resolveFavorite`) — 로그인 상태에서만 조회함
+- **게시판 (2026-08-09)**: 암장 상세의 "게시판" 버튼 → `/gym/:id/board` ([gym_board_screen.dart](lib/features/gym/presentation/gym_board_screen.dart)). 처음 진입 시 전체 게시글(`GET /api/post/gym/{gymId}`), 상단 태그(전체/공지사항/세팅 일정/분실물 안내/암장 이벤트) 선택 시 서버 필터링 조회(`GET /api/post/gym/{gymId}/posttype/{postType}` — 경로 세그먼트가 `postType`이 아니라 소문자 `posttype`이니 주의). 둘 다 페이지네이션("더 보기"). 목업 암장에는 버튼이 안 보임. 게시글 탭 시 기존 `/notice/:id` 화면 재사용 (본문은 안내 문구로 대체 — 상세 API 없음).
+- **CORS**: 백엔드가 `localhost:3000` origin만 허용하도록 설정됨 (2026-08-09) — 웹 프리뷰 포트를 8765 → 3000으로 맞춤 (`.claude/launch.json`).
 
 ## 남은 작업 순서
 

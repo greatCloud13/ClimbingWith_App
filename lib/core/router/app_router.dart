@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/application/auth_providers.dart';
@@ -8,8 +8,10 @@ import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/gym/domain/gym_detail.dart';
 import '../../features/gym/domain/sector.dart';
 import '../../features/gym/gym_screen.dart';
+import '../../features/gym/presentation/gym_board_screen.dart';
 import '../../features/gym/presentation/gym_detail_screen.dart';
 import '../../features/gym/presentation/sector_problems_screen.dart';
+import '../theme/app_colors.dart';
 import '../../features/home/domain/notice.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/notice_detail_screen.dart';
@@ -71,6 +73,13 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
         path: '/gym/:id',
         builder: (context, state) =>
             GymDetailScreen(gymId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/gym/:id/board',
+        builder: (context, state) => GymBoardScreen(
+          gymId: int.parse(state.pathParameters['id']!),
+          accent: (state.extra as Color?) ?? AppColors.holdLime,
+        ),
       ),
       GoRoute(
         path: '/gym/:id/sector/:sectorId',

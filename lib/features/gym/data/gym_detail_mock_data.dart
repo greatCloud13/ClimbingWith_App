@@ -63,6 +63,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: 'A구역 · 슬랩',
         description: '수직·슬랩 위주',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 4,
         problems: const [
           ClimbingProblem(
             id: 'p1',
@@ -99,6 +100,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: 'B구역 · 오버행',
         description: '오버행 위주',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 3,
         problems: const [
           ClimbingProblem(
             id: 'p5',
@@ -128,6 +130,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: 'C구역 · 챌린지 월',
         description: '월간 챌린지 전용',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 2,
         problems: const [
           ClimbingProblem(
             id: 'p8',
@@ -180,6 +183,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: '메인 월',
         description: '가장 넓은 볼더링 구역',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 4,
         problems: const [
           ClimbingProblem(
             id: 'p1',
@@ -216,6 +220,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: '리드 월',
         description: '로프 리드 클라이밍',
         discipline: ClimbingDiscipline.lead,
+        problemCount: 3,
         problems: const [
           ClimbingProblem(
             id: 'p5',
@@ -245,6 +250,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: '키즈 존',
         description: '어린이 전용 낮은 벽',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 1,
         problems: const [
           ClimbingProblem(
             id: 'p8',
@@ -283,6 +289,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: '1층 볼더링',
         description: '입문~중급',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 3,
         problems: const [
           ClimbingProblem(
             id: 'p1',
@@ -312,6 +319,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: '2층 볼더링',
         description: '중급~고급',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 2,
         problems: const [
           ClimbingProblem(
             id: 'p4',
@@ -334,6 +342,7 @@ final Map<String, GymDetail> mockGymDetails = {
         name: '루프 구간',
         description: '천장 구간 전문가용',
         discipline: ClimbingDiscipline.boulder,
+        problemCount: 1,
         problems: const [
           ClimbingProblem(
             id: 'p6',
