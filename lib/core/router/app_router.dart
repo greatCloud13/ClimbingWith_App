@@ -59,9 +59,21 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
       };
     },
     routes: [
-      GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-      GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
+      GoRoute(
+        path: '/splash',
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const SplashScreen()),
+      ),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const LoginScreen()),
+      ),
+      GoRoute(
+        path: '/signup',
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const SignUpScreen()),
+      ),
       GoRoute(
         path: '/notice/:id',
         builder: (context, state) => NoticeDetailScreen(
