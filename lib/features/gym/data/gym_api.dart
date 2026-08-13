@@ -3,9 +3,12 @@ import '../../../core/network/api_exception.dart';
 import '../domain/climbing_discipline.dart';
 import '../domain/gym_detail.dart';
 import '../domain/climbing_setting.dart';
+import '../domain/drop_point_stats.dart';
 import '../domain/gym_post.dart';
 import '../domain/gym_problem.dart';
+import '../domain/gym_problem_detail.dart';
 import '../domain/gym_level.dart';
+import '../domain/problem_try_log.dart';
 import '../domain/sector.dart';
 import '../domain/sector_detail.dart';
 
@@ -230,6 +233,24 @@ class GymApi {
         .toList();
   }
 
+  Future<GymProblem> fetchProblem(int id) async {
+    final res = await _dio.get('/api/problem/$id');
+    return GymProblem.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// 문제 상세조회 화면 전용 — 홀드 갯수·전체 트라이/클리어 집계·내 최고 도달
+  /// 지점(myBestDropPoint)을 포함한다.
+  Future<GymProblemDetail> fetchProblemDetail(int id) async {
+    final res = await _dio.get('/api/problem/$id/detail');
+    return GymProblemDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// 커뮤니티 낙하 지점 분포(홀드 순번별 인원수) — 루트 토포 히트맵에 쓴다.
+  Future<DropPointStats> fetchDropPointStats(int id) async {
+    final res = await _dio.get('/api/problem/$id/dropPointStats');
+    return DropPointStats.fromJson(res.data as Map<String, dynamic>);
+  }
+
   /// 신규 문제 등록. `gymLevelId`는 [fetchLevelsByGym]으로 조회한 난이도 단계의 id.
   Future<GymProblem> createProblem({
     required int settingId,
@@ -286,6 +307,69 @@ class GymApi {
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }
+  }
+
+  /// 문제 시도 기록 생성 — 로그인한 사용자 기준으로 서버가 자동 결정하므로
+  /// userId는 보내지 않는다. [dropPoint]는 이 트라이에서 도달한 홀드 순번.
+  /// `tryDate`는 클라이언트가 보내도 서버가 항상 오늘 날짜로 저장해 보내지 않는다.
+  Future<ProblemTryLog> createTryLog({
+    required int problemId,
+    required int dropPoint,
+    String? memo,
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/api/problemTryLog',
+        data: {
+          'problemId': problemId,
+          'dropPoint': dropPoint,
+          if (memo != null && memo.isNotEmpty) 'memo': memo,
+        },
+      );
+      return ProblemTryLog.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<ProblemTryLog> fetchTryLog(int id) async {
+    final res = await _dio.get('/api/problemTryLog/$id');
+    return ProblemTryLog.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// `tryDate`는 보내지 않는다 — [createTryLog] 참고.
+  Future<ProblemTryLog> updateTryLog({required int id, required int problemId, required int dropPoint, String? memo}) async {
+    try {
+      final res = await _dio.put(
+        '/api/problemTryLog/$id',
+        data: {
+          'problemId': problemId,
+          'dropPoint': dropPoint,
+          if (memo != null && memo.isNotEmpty) 'memo': memo,
+        },
+      );
+      return ProblemTryLog.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> deleteTryLog(int id) async {
+    try {
+      await _dio.delete('/api/problemTryLog/$id');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// 사용자별 문제 시도 기록 목록(최신순, 페이지네이션) — 아직 문제 단위
+  /// 필터가 없어 [ProblemTryLog.problemId]로 화면에서 직접 걸러 써야 한다.
+  Future<ProblemTryLogPage> fetchTryLogsByUser(int userId, {int page = 0, int size = 20}) async {
+    final res = await _dio.get(
+      '/api/problemTryLog/user/$userId',
+      queryParameters: {'page': page, 'size': size},
+    );
+    return ProblemTryLogPage.fromJson(res.data as Map<String, dynamic>);
   }
 
   /// 암장의 난이도(레벨) 목록. 문제 등록/수정 폼의 난이도 드롭다운에 쓴다.

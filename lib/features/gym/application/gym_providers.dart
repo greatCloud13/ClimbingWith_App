@@ -1,10 +1,14 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/bookmark_api.dart';
 import '../data/gym_api.dart';
+import '../data/problem_try_mock_data.dart';
+import '../domain/drop_point_stats.dart';
 import '../domain/gym_detail.dart';
 import '../domain/gym_level.dart';
 import '../domain/gym_problem.dart';
+import '../domain/gym_problem_detail.dart';
 import '../domain/sector_detail.dart';
 
 final Provider<GymApi> gymApiProvider = Provider<GymApi>(
@@ -24,6 +28,42 @@ final sectorDetailProvider = FutureProvider.family<SectorDetail, int>(
 /// GET /api/problem/setting/{id} — 세팅에 속한 문제(루트) 목록.
 final problemsBySettingProvider = FutureProvider.family<List<GymProblem>, int>(
   (ref, settingId) => ref.watch(gymApiProvider).fetchProblemsBySetting(settingId),
+);
+
+/// GET /api/problem/{id}/detail — 문제 상세조회 화면 전용(홀드 갯수, 내 최고
+/// 도달 지점 등 목록 API에 없는 필드 포함). 이 API는 비로그인 요청에 403을
+/// 내려주므로(로그인 필요), 게스트는 공개 정보(`GET /api/problem/{id}`)로
+/// 구성한 "체험 모드" 데이터로 대체해 화면 자체는 계속 볼 수 있게 한다.
+final gymProblemDetailProvider = FutureProvider.family<GymProblemDetail, int>((ref, problemId) async {
+  final api = ref.watch(gymApiProvider);
+  try {
+    return await api.fetchProblemDetail(problemId);
+  } on DioException catch (e) {
+    if (e.response?.statusCode != 403) rethrow;
+    final basic = await api.fetchProblem(problemId);
+    return GymProblemDetail(
+      id: basic.id,
+      settingId: basic.settingId,
+      title: basic.title,
+      problemType: basic.problemType,
+      gymLevel: basic.gymLevel,
+      holdCount: mockHoldCount(basic.id),
+      myTryCount: 0,
+      clearCount: basic.clearUserCount,
+      levelId: basic.levelId,
+      colorCode: basic.colorCode,
+      description: basic.description,
+      evaluation: basic.evaluation,
+      isGuestPreview: true,
+    );
+  }
+});
+
+/// GET /api/problem/{id}/dropPointStats — 커뮤니티 낙하 지점 분포(루트 토포
+/// 히트맵). 게스트 체험 모드에서는 holdCount 자체가 목업이라 실데이터와
+/// 안 맞을 수 있어 쓰지 않는다([problem_detail_screen.dart]에서 분기).
+final dropPointStatsProvider = FutureProvider.family<DropPointStats, int>(
+  (ref, problemId) => ref.watch(gymApiProvider).fetchDropPointStats(problemId),
 );
 
 /// GET /api/level/gym/{gymId} — 암장 난이도(레벨) 목록. 문제 등록/수정 폼의

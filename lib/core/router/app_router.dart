@@ -10,6 +10,7 @@ import '../../features/gym/domain/sector.dart';
 import '../../features/gym/gym_screen.dart';
 import '../../features/gym/presentation/gym_board_screen.dart';
 import '../../features/gym/presentation/gym_detail_screen.dart';
+import '../../features/gym/presentation/problem_detail_screen.dart';
 import '../../features/gym/presentation/sector_problems_screen.dart';
 import '../../features/gym_manage/presentation/gym_manager_board_screen.dart';
 import '../../features/gym_manage/presentation/gym_post_form_screen.dart';
@@ -175,6 +176,12 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
             sector: extra?['sector'] as Sector?,
           );
         },
+      ),
+      GoRoute(
+        path: '/gym/:id/sector/:sectorId/problem/:problemId',
+        builder: (context, state) => ProblemDetailScreen(
+          problemId: int.parse(state.pathParameters['problemId']!),
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
