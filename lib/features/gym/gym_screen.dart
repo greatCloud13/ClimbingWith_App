@@ -1,83 +1,173 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import 'application/gym_providers.dart';
+import 'domain/gym_search_result.dart';
+import 'domain/gym_type.dart';
 
-class _Gym {
-  const _Gym({
-    required this.id,
-    required this.name,
-    required this.area,
-    required this.tags,
-    required this.crowd,
-    required this.crowdLabel,
-    required this.accent,
-    required this.difficultyMix,
-  });
-
-  final String id;
-  final String name;
-  final String area;
-  final List<String> tags;
-  final double crowd; // 0.0 ~ 1.0
-  final String crowdLabel;
-  final Color accent;
-  final List<double> difficultyMix; // easy, mid, hard, extreme 비율
-}
-
-const _gyms = [
-  _Gym(
-    id: 'seongsu',
-    name: '락클라임 성수',
-    area: '성수동 · 도보 5분',
-    tags: ['볼더링', '초보환영'],
-    crowd: 0.35,
-    crowdLabel: '여유',
-    accent: AppColors.holdLime,
-    difficultyMix: [0.3, 0.4, 0.2, 0.1],
-  ),
-  _Gym(
-    id: 'hongdae',
-    name: '그립하우스 홍대',
-    area: '홍대입구 · 도보 8분',
-    tags: ['볼더링', '리드', '신규셋팅'],
-    crowd: 0.82,
-    crowdLabel: '혼잡',
-    accent: AppColors.holdMagenta,
-    difficultyMix: [0.15, 0.35, 0.35, 0.15],
-  ),
-  _Gym(
-    id: 'gangnam',
-    name: '볼더베이스 강남',
-    area: '강남역 · 도보 3분',
-    tags: ['볼더링', '24시간'],
-    crowd: 0.6,
-    crowdLabel: '보통',
-    accent: AppColors.holdCyan,
-    difficultyMix: [0.2, 0.3, 0.3, 0.2],
-  ),
-];
-
-class GymScreen extends StatelessWidget {
+/// GET /api/gym/search 연동 — 상단 입력창 + 바로 아래 검색 결과 리스트.
+class GymScreen extends ConsumerStatefulWidget {
   const GymScreen({super.key});
 
   @override
+  ConsumerState<GymScreen> createState() => _GymScreenState();
+}
+
+class _GymScreenState extends ConsumerState<GymScreen> {
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+  final List<GymSearchResult> _gyms = [];
+  int _nextPage = 0;
+  bool _hasMore = true;
+  bool _loading = false;
+  String? _errorMessage;
+  String _keyword = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMore();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onKeywordChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      setState(() {
+        _keyword = value.trim();
+        _gyms.clear();
+        _nextPage = 0;
+        _hasMore = true;
+        _errorMessage = null;
+      });
+      _loadMore();
+    });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || !_hasMore) return;
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    try {
+      final page = await ref
+          .read(gymApiProvider)
+          .searchGyms(
+            keyword: _keyword.isEmpty ? null : _keyword,
+            page: _nextPage,
+          );
+      setState(() {
+        _gyms.addAll(page.results);
+        _hasMore = !page.isLast;
+        _nextPage = page.pageNumber + 1;
+      });
+    } catch (_) {
+      setState(() => _errorMessage = '암장 목록을 불러오지 못했어요.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          pinned: true,
-          backgroundColor: AppColors.background,
-          title: const Text('클라이밍장'),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          sliver: SliverList.separated(
-            itemCount: _gyms.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _GymCard(gym: _gyms[i]),
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('클라이밍장', style: theme.textTheme.headlineMedium),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _searchController,
+                  onChanged: _onKeywordChanged,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: '암장 이름 또는 주소로 검색',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: AppColors.surfaceElevated,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: _gyms.isEmpty && _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _gyms.isEmpty
+                ? Center(
+                    child: Text(
+                      _errorMessage ??
+                          (_keyword.isEmpty
+                              ? '등록된 암장이 아직 없어요.'
+                              : '검색 결과가 없어요.'),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    itemCount: _gyms.length + 1,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) {
+                      if (i == _gyms.length) {
+                        if (_errorMessage != null) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Column(
+                              children: [
+                                Text(
+                                  _errorMessage!,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                OutlinedButton(
+                                  onPressed: _loadMore,
+                                  child: const Text('다시 시도'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        if (_hasMore) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Center(
+                              child: _loading
+                                  ? const CircularProgressIndicator()
+                                  : OutlinedButton(
+                                      onPressed: _loadMore,
+                                      child: const Text('더 보기'),
+                                    ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }
+                      return _GymCard(gym: _gyms[i]);
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -85,7 +175,7 @@ class GymScreen extends StatelessWidget {
 class _GymCard extends StatelessWidget {
   const _GymCard({required this.gym});
 
-  final _Gym gym;
+  final GymSearchResult gym;
 
   @override
   Widget build(BuildContext context) {
@@ -106,60 +196,44 @@ class _GymCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(gym.name, style: theme.textTheme.titleLarge),
+                        Text(gym.gymName, style: theme.textTheme.titleLarge),
                         const SizedBox(height: 2),
-                        Text(gym.area, style: theme.textTheme.bodyMedium),
+                        Text(gym.address, style: theme.textTheme.bodyMedium),
                       ],
                     ),
                   ),
-                  _CrowdPill(
-                    crowd: gym.crowd,
-                    label: gym.crowdLabel,
-                    accent: gym.accent,
-                  ),
+                  _GymTypeTag(gymType: gym.gymType),
                 ],
               ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                children: gym.tags
-                    .map(
-                      (t) => Chip(
-                        label: Text(t),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 12),
-              Text('난이도 분포', style: theme.textTheme.labelSmall),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  height: 8,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: (gym.difficultyMix[0] * 100).round(),
-                        child: Container(color: AppColors.gradeEasy),
-                      ),
-                      Expanded(
-                        flex: (gym.difficultyMix[1] * 100).round(),
-                        child: Container(color: AppColors.gradeMid),
-                      ),
-                      Expanded(
-                        flex: (gym.difficultyMix[2] * 100).round(),
-                        child: Container(color: AppColors.gradeHard),
-                      ),
-                      Expanded(
-                        flex: (gym.difficultyMix[3] * 100).round(),
-                        child: Container(color: AppColors.gradeExtreme),
+              if (!gym.isActive) ...[
+                const SizedBox(height: 10),
+                const _InactiveTag(),
+              ],
+              if (gym.openAt != null && gym.closeAt != null) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 15,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '평일 ${gym.openAt}~${gym.closeAt}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    if (gym.weekendOpenAt != null &&
+                        gym.weekendCloseAt != null) ...[
+                      const SizedBox(width: 10),
+                      Text(
+                        '주말 ${gym.weekendOpenAt}~${gym.weekendCloseAt}',
+                        style: theme.textTheme.bodySmall,
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -168,43 +242,54 @@ class _GymCard extends StatelessWidget {
   }
 }
 
-class _CrowdPill extends StatelessWidget {
-  const _CrowdPill({
-    required this.crowd,
-    required this.label,
-    required this.accent,
-  });
+class _GymTypeTag extends StatelessWidget {
+  const _GymTypeTag({required this.gymType});
 
-  final double crowd;
-  final String label;
-  final Color accent;
+  final GymType gymType;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (gymType) {
+      GymType.boulder => '볼더',
+      GymType.lead => '리드',
+      GymType.both => '볼더+리드',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.holdLime.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.holdLime,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _InactiveTag extends StatelessWidget {
+  const _InactiveTag();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.14),
+        color: AppColors.holdMagenta.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+      child: const Text(
+        '휴무 중',
+        style: TextStyle(
+          color: AppColors.holdMagenta,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -105,7 +105,8 @@ lib/
   - 로그아웃 상태 또는 북마크한 암장이 없는 경우 둘 다 "등록된 암장 리스트 보기" 버튼으로 `/gym`으로 안내 (`_GuestPromptCard`, `_EmptyGymBookmarksCard`)
   - 스트릭/친구활동은 아직 API 없어 목업 데이터 사용 중 (`reports/` 참고)
   - **GYM_MANAGER 전용 홈**: role이 `GYM_MANAGER`면 위 일반 홈 대신 `_GymManagerHome`이 보인다. 캘린더는 아직 API가 없어 placeholder(`reports/` 참고). **게시판 관리(CRUD)는 실제 API 연동 완료 (2026-08-10)**: 카드를 탭하면 `/gym-manage/board`([gym_manager_board_screen.dart](lib/features/gym_manage/presentation/gym_manager_board_screen.dart))로 이동 — 조회는 공개 게시판과 같은 `GET /api/post/gym/{gymId}`(`managedGymId` 사용)를 재사용하고, 작성은 `POST /api/post`(경로에 gymId 없이 인증된 매니저의 관리 암장으로 서버가 자동 결정), 수정은 `PUT /api/post/{postId}`, 삭제는 `DELETE /api/post/{postId}`, 수정 폼 프리필은 `GET /api/post/{postId}`(상세 조회) 사용. 글쓰기/수정 폼은 `/gym-manage/board/write`([gym_post_form_screen.dart](lib/features/gym_manage/presentation/gym_post_form_screen.dart)).
-- `/gym`, `/record` — 기존 GymScreen/RecordScreen 재사용
+- `/gym` — [gym_screen.dart](lib/features/gym/gym_screen.dart): **암장 검색 실연동 완료 (2026-08-13)**: 목업 목록을 `GET /api/gym/search`로 교체. 상단 검색창(입력 400ms 디바운스) + 바로 아래 결과 리스트로, 조건을 지정하지 않으면 활성 암장 전체가 반환된다. 이번 범위는 키워드 검색만 구현했고, API가 지원하는 `gymType`/`hashtag`/`isActive` 필터 UI는 사용자 확인 하에 다음 단계로 미룸.
+- `/record` — 기존 RecordScreen 재사용
 - `/profile`, `/more` — 최소 구현 (상세 디자인은 사용자가 별도 설계 예정)
 - 기존 `FeedScreen`(커뮤니티 피드, [feed_screen.dart](lib/features/feed/feed_screen.dart))은 5탭 구성에서 빠져 현재 라우팅에 연결되어 있지 않음 — 삭제하지 않고 보류 (재사용 여부 확인 필요)
 

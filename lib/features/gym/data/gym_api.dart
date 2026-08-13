@@ -8,6 +8,7 @@ import '../domain/gym_post.dart';
 import '../domain/gym_problem.dart';
 import '../domain/gym_problem_detail.dart';
 import '../domain/gym_level.dart';
+import '../domain/gym_search_result.dart';
 import '../domain/problem_try_log.dart';
 import '../domain/sector.dart';
 import '../domain/sector_detail.dart';
@@ -20,6 +21,24 @@ class GymApi {
   Future<GymDetail> fetchGymDetail(int id) async {
     final res = await _dio.get('/api/gym/$id');
     return GymDetail.fromApiJson(res.data as Map<String, dynamic>);
+  }
+
+  /// 암장 검색 — 키워드/암장 타입/해시태그/활성 여부 조건, 조건이 없으면
+  /// 활성화된 암장 전체를 반환한다.
+  Future<GymSearchResultPage> searchGyms({
+    String? keyword,
+    int page = 0,
+    int size = 20,
+  }) async {
+    final res = await _dio.get(
+      '/api/gym/search',
+      queryParameters: {
+        if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
+        'page': page,
+        'size': size,
+      },
+    );
+    return GymSearchResultPage.fromJson(res.data as Map<String, dynamic>);
   }
 
   /// 전체 게시글(모든 postType 혼합) — 게시판 "전체" 탭에서 사용.
