@@ -11,6 +11,8 @@ import '../../features/gym/gym_screen.dart';
 import '../../features/gym/presentation/gym_board_screen.dart';
 import '../../features/gym/presentation/gym_detail_screen.dart';
 import '../../features/gym/presentation/sector_problems_screen.dart';
+import '../../features/gym_manage/presentation/gym_manager_board_screen.dart';
+import '../../features/gym_manage/presentation/gym_post_form_screen.dart';
 import '../theme/app_colors.dart';
 import '../../features/home/domain/notice.dart';
 import '../../features/home/presentation/home_screen.dart';
@@ -37,7 +39,12 @@ final Provider<_AuthRefreshNotifier> _authRefreshProvider =
 
 /// 로그인 없이는 볼 수 없는 경로. 그 외(홈/암장/더보기/공지 등)는 게스트도 접근 가능 —
 /// 홈 화면 안에서 개인화 섹션(즐겨찾기/스트릭/친구활동)만 로그인을 유도한다.
-const _authRequiredPaths = {'/profile', '/record'};
+const _authRequiredPaths = {
+  '/profile',
+  '/record',
+  '/gym-manage/board',
+  '/gym-manage/board/write',
+};
 
 final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -92,6 +99,15 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
           gymId: int.parse(state.pathParameters['id']!),
           accent: (state.extra as Color?) ?? AppColors.holdLime,
         ),
+      ),
+      GoRoute(
+        path: '/gym-manage/board',
+        builder: (_, _) => const GymManagerBoardScreen(),
+      ),
+      GoRoute(
+        path: '/gym-manage/board/write',
+        builder: (context, state) =>
+            GymPostFormScreen(postId: state.extra as int?),
       ),
       GoRoute(
         path: '/gym/:id/sector/:sectorId',

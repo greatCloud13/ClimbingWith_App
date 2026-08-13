@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/auth_state.dart';
+import '../../shell/record_or_manage_screen.dart' show gymManagerRole;
 import '../application/home_providers.dart';
 import '../data/home_mock_data.dart';
 import '../domain/friend_activity.dart';
@@ -30,8 +31,14 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isAuthenticated =
-        ref.watch(authControllerProvider) is AuthAuthenticated;
+    final authState = ref.watch(authControllerProvider);
+    final isAuthenticated = authState is AuthAuthenticated;
+    final isGymManager =
+        authState is AuthAuthenticated && authState.user.role == gymManagerRole;
+
+    if (isGymManager) {
+      return const _GymManagerHome();
+    }
 
     return CustomScrollView(
       slivers: [
@@ -81,6 +88,102 @@ class HomeScreen extends ConsumerWidget {
           const SliverToBoxAdapter(child: _GuestPromptCard()),
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
+    );
+  }
+}
+
+/// GYM_MANAGER 전용 홈 — 캘린더 + 게시판 CRUD가 메인 콘텐츠. 레이아웃은
+/// 사용자 와이어프레임 수령 후 확정 예정, 지금은 자리만 잡아둔 placeholder.
+class _GymManagerHome extends StatelessWidget {
+  const _GymManagerHome();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+          sliver: SliverToBoxAdapter(
+            child: Text('암장 관리', style: theme.textTheme.headlineMedium),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ManagerPlaceholderCard(
+                  icon: Icons.calendar_month_rounded,
+                  title: '캘린더',
+                  description: '셋팅일·이벤트 캘린더는 준비 중입니다.',
+                ),
+                const SizedBox(height: 16),
+                _ManagerPlaceholderCard(
+                  icon: Icons.dashboard_customize_rounded,
+                  title: '게시판 관리',
+                  description: '게시글을 작성·수정·삭제할 수 있어요.',
+                  onTap: () => context.push('/gym-manage/board'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ManagerPlaceholderCard extends StatelessWidget {
+  const _ManagerPlaceholderCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final card = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.textTertiary, size: 28),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(description, style: theme.textTheme.bodyMedium),
+              ],
+            ),
+          ),
+          if (onTap != null)
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+        ],
+      ),
+    );
+
+    if (onTap == null) return card;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: card,
     );
   }
 }
