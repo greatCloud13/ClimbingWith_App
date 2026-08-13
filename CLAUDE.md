@@ -127,6 +127,7 @@ lib/
   - **해제(DELETE)용 북마크 id 확보**: `GET /api/home`의 `gymCardList[]`에 `bookmarkId` 필드가 직접 추가됨(처음엔 별도 `bookmarkIdList`를 위치로 대응시켰다가, 1:1이 아니어서 명시적 필드로 교체함) — `HomeGymCard.bookmarkId`. 이번 세션에 앱에서 직접 등록한 건 `bookmarkIdMapProvider`, 그 외(이전부터 즐겨찾기된 암장)는 이 필드로 해제 가능.
 - **게시판 (2026-08-09)**: 암장 상세의 "게시판" 버튼 → `/gym/:id/board` ([gym_board_screen.dart](lib/features/gym/presentation/gym_board_screen.dart)). 처음 진입 시 전체 게시글(`GET /api/post/gym/{gymId}`), 상단 태그(전체/공지사항/세팅 일정/분실물 안내/암장 이벤트) 선택 시 서버 필터링 조회(`GET /api/post/gym/{gymId}/posttype/{postType}` — 경로 세그먼트가 `postType`이 아니라 소문자 `posttype`이니 주의). 둘 다 페이지네이션("더 보기"). 목업 암장에는 버튼이 안 보임. 게시글 탭 시 기존 `/notice/:id` 화면 재사용 (본문은 안내 문구로 대체 — 상세 API 없음).
 - **CORS**: 백엔드가 `localhost:3000` origin만 허용하도록 설정됨 (2026-08-09) — 웹 프리뷰 포트를 8765 → 3000으로 맞춤 (`.claude/launch.json`).
+- **일반 사용자 문제 조회 화면 실연동 완료 (2026-08-10)**: 섹터 탭 시 이동하는 [sector_problems_screen.dart](lib/features/gym/presentation/sector_problems_screen.dart)를 실제 암장(정수 sectorId)에서는 `GET /api/sector/{id}`로 조회한 세팅 기록 중 진행 중(`active`)인 세팅을 찾아 그 세팅의 `GET /api/problem/setting/{id}` 문제 목록을 보여주도록 교체 — 레이아웃은 매니저 문제관리 화면([problem_list_screen.dart](lib/features/gym_manage/presentation/problem_list_screen.dart))과 동일(난이도 필터 칩 + 색상 스와치 카드)하게 맞추되 등록/수정/삭제 버튼은 없는 조회 전용. 진행 중인 세팅이 없으면 안내 문구만 표시. 목업 암장(문자열 sectorId)은 기존 `Sector.problems` 목업 렌더링을 그대로 유지.
 
 ## GYM_MANAGER 문제 관리 (섹터 → 세팅 → 문제)
 
