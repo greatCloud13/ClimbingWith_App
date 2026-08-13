@@ -13,6 +13,16 @@ import '../../features/gym/presentation/gym_detail_screen.dart';
 import '../../features/gym/presentation/sector_problems_screen.dart';
 import '../../features/gym_manage/presentation/gym_manager_board_screen.dart';
 import '../../features/gym_manage/presentation/gym_post_form_screen.dart';
+import '../../features/gym_manage/presentation/level_form_screen.dart';
+import '../../features/gym_manage/presentation/problem_form_screen.dart';
+import '../../features/gym_manage/presentation/problem_list_screen.dart';
+import '../../features/gym_manage/presentation/sector_form_screen.dart';
+import '../../features/gym_manage/presentation/sector_settings_screen.dart';
+import '../../features/gym_manage/presentation/setting_form_screen.dart';
+import '../../features/gym/domain/climbing_setting.dart';
+import '../../features/gym/domain/gym_level.dart';
+import '../../features/gym/domain/gym_problem.dart';
+import '../../features/gym/domain/gym_type.dart';
 import '../theme/app_colors.dart';
 import '../../features/home/domain/notice.dart';
 import '../../features/home/presentation/home_screen.dart';
@@ -44,6 +54,12 @@ const _authRequiredPaths = {
   '/record',
   '/gym-manage/board',
   '/gym-manage/board/write',
+  '/gym-manage/sector/write',
+  '/gym-manage/sector/:sectorId',
+  '/gym-manage/setting/write',
+  '/gym-manage/setting/:settingId/problem',
+  '/gym-manage/setting/:settingId/problem/write',
+  '/gym-manage/level/write',
 };
 
 final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
@@ -108,6 +124,45 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((ref) {
         path: '/gym-manage/board/write',
         builder: (context, state) =>
             GymPostFormScreen(postId: state.extra as int?),
+      ),
+      GoRoute(
+        path: '/gym-manage/level/write',
+        builder: (context, state) =>
+            LevelFormScreen(level: state.extra as GymLevel?),
+      ),
+      GoRoute(
+        path: '/gym-manage/sector/write',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, Object?>;
+          return SectorFormScreen(
+            gymType: extra['gymType'] as GymType,
+            sector: extra['sector'] as Sector?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/gym-manage/sector/:sectorId',
+        builder: (context, state) => SectorSettingsScreen(
+          sectorId: int.parse(state.pathParameters['sectorId']!),
+        ),
+      ),
+      GoRoute(
+        path: '/gym-manage/setting/write',
+        builder: (context, state) =>
+            SettingFormScreen(setting: state.extra as ClimbingSetting),
+      ),
+      GoRoute(
+        path: '/gym-manage/setting/:settingId/problem',
+        builder: (context, state) => ProblemListScreen(
+          settingId: int.parse(state.pathParameters['settingId']!),
+        ),
+      ),
+      GoRoute(
+        path: '/gym-manage/setting/:settingId/problem/write',
+        builder: (context, state) => ProblemFormScreen(
+          settingId: int.parse(state.pathParameters['settingId']!),
+          problem: state.extra as GymProblem?,
+        ),
       ),
       GoRoute(
         path: '/gym/:id/sector/:sectorId',

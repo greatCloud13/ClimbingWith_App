@@ -96,7 +96,7 @@ lib/
 
 ## 네비게이션 구조 (5탭) + 게스트 접근
 
-바텀탭: 홈 / 암장 / 운동기록(또는 암장관리) / 프로필 / 더보기. 4번째 탭은 `CurrentUser.role`이 `GYM_MANAGER`면 "암장관리"(`GymManageScreen`)로, 그 외엔 "운동기록"(`RecordScreen`)으로 내용과 라벨·아이콘이 함께 바뀐다 — 경로(`/record`)는 고정, [record_or_manage_screen.dart](lib/features/shell/record_or_manage_screen.dart)에서 분기.
+바텀탭: 홈 / 암장 / 운동기록(또는 문제관리) / 프로필 / 더보기. 4번째 탭은 `CurrentUser.role`이 `GYM_MANAGER`면 "문제관리"(`GymManageScreen`, [gym_manage_screen.dart](lib/features/gym_manage/gym_manage_screen.dart))로, 그 외엔 "운동기록"(`RecordScreen`)으로 내용과 라벨·아이콘이 함께 바뀐다 — 경로(`/record`)는 고정, [record_or_manage_screen.dart](lib/features/shell/record_or_manage_screen.dart)에서 분기. **게시판 CRUD는 이 탭이 아니라 홈 화면 쪽에 있다** — 문제관리 탭은 문제(루트) 관리 전용.
 
 **로그인 없이도 앱 사용 가능(게스트 모드)**: 앱을 켰을 때 첫 화면은 로그인이 아니라 홈이다. `/profile`, `/record`, `/gym-manage/board`(`/write` 포함)만 로그인을 요구하고(`_authRequiredPaths`, [app_router.dart](lib/core/router/app_router.dart)), `/home`·`/gym`·`/more`는 게스트도 접근 가능. 홈 화면 안에서 개인화 섹션(즐겨찾기 클라이밍장/스트릭/친구활동)은 로그인 상태일 때만 보이고, 비로그인 시 그 자리에 로그인 유도 카드(`_GuestPromptCard`)가 대신 표시된다.
 
@@ -127,6 +127,23 @@ lib/
   - **해제(DELETE)용 북마크 id 확보**: `GET /api/home`의 `gymCardList[]`에 `bookmarkId` 필드가 직접 추가됨(처음엔 별도 `bookmarkIdList`를 위치로 대응시켰다가, 1:1이 아니어서 명시적 필드로 교체함) — `HomeGymCard.bookmarkId`. 이번 세션에 앱에서 직접 등록한 건 `bookmarkIdMapProvider`, 그 외(이전부터 즐겨찾기된 암장)는 이 필드로 해제 가능.
 - **게시판 (2026-08-09)**: 암장 상세의 "게시판" 버튼 → `/gym/:id/board` ([gym_board_screen.dart](lib/features/gym/presentation/gym_board_screen.dart)). 처음 진입 시 전체 게시글(`GET /api/post/gym/{gymId}`), 상단 태그(전체/공지사항/세팅 일정/분실물 안내/암장 이벤트) 선택 시 서버 필터링 조회(`GET /api/post/gym/{gymId}/posttype/{postType}` — 경로 세그먼트가 `postType`이 아니라 소문자 `posttype`이니 주의). 둘 다 페이지네이션("더 보기"). 목업 암장에는 버튼이 안 보임. 게시글 탭 시 기존 `/notice/:id` 화면 재사용 (본문은 안내 문구로 대체 — 상세 API 없음).
 - **CORS**: 백엔드가 `localhost:3000` origin만 허용하도록 설정됨 (2026-08-09) — 웹 프리뷰 포트를 8765 → 3000으로 맞춤 (`.claude/launch.json`).
+
+## GYM_MANAGER 문제 관리 (섹터 → 세팅 → 문제)
+
+문제관리 탭(`GymManageScreen`, [gym_manage_screen.dart](lib/features/gym_manage/gym_manage_screen.dart))은 "섹터"/"난이도" 두 탭으로 구성(2026-08-10). "섹터" 탭 depth는 섹터 → 세팅(섹터별로 문제가 유지되는 기간) → 문제 순서이고, 섹터·세팅·문제 전 depth의 CRUD가 완료됨. "난이도" 탭은 문제 등록에 쓰이는 난이도(`GymLevel`) 자체의 CRUD.
+
+- **섹터 목록·생성·수정 실연동 완료 (2026-08-10)**: 목록은 별도 API 없이 기존 `GET /api/gym/{id}`의 `sectorList`를 재사용(`managedGymId` 기준). 생성은 `POST /api/sector`(gymId/sectorName/description), 수정은 `PUT /api/sector/{sectorId}`(sectorName/description/settingDate/nextSettingDate) — 응답이 `{success, data, error}`로 감싸져 있어 `data`만 파싱함(다른 API들과 응답 포맷이 다르니 주의). 폼: [sector_form_screen.dart](lib/features/gym_manage/presentation/sector_form_screen.dart) — 생성 API가 날짜 필드를 안 받아서 세팅일/다음 세팅 예정일 입력은 수정 모드에서만 노출. 섹터 목록에서 **행을 탭하면 세팅 기록 화면으로, 연필 아이콘을 탭하면 섹터 정보 수정 폼으로** — 둘을 분리했다(처음엔 행 탭 = 수정으로 합쳐뒀다가, 세팅 기록이 우선이라는 피드백을 받고 분리함).
+- **세팅 기록 화면 + CRUD 실연동 완료 (2026-08-10)**: `/gym-manage/sector/:sectorId` ([sector_settings_screen.dart](lib/features/gym_manage/presentation/sector_settings_screen.dart)) — `GET /api/sector/{id}`(역시 `{success, data, error}` 래핑)로 섹터 상세 + `settingList`(세팅 기록: 시작일/종료일/진행중 여부)를 보여준다. **세팅은 섹터의 "설정"이 아니라 한 섹터에서 여러 루트(문제)가 유지되는 기간을 뜻한다** — 혼동 주의.
+  - 생성(`POST /api/setting`)은 `sectorId`/`gymId`만 받고 기간이 없어서, "새 세팅 시작" 버튼을 누르면 생성 직후 곧바로 수정 폼([setting_form_screen.dart](lib/features/gym_manage/presentation/setting_form_screen.dart))으로 이동해 기간을 채우는 흐름. 수정은 `PUT /api/setting/{id}`(settingDate/startDate/endDate — `endDate`는 nullable로 확인받아 진행 중일 땐 필드 자체를 안 보냄), 삭제는 `DELETE /api/setting/{id}`, 활성/비활성 토글은 `PATCH /api/setting/{id}/active`·`/disable`(세팅 카드의 재생/일시정지 아이콘).
+  - **세팅 삭제 실패 시 안내 문구 고정**: 등록된 문제가 있으면 삭제가 막힐 수 있어서, 서버 원본 에러 메시지 대신 "등록된 문제가 있다면 문제를 먼저 삭제해주세요"로 항상 고정해서 보여준다.
+  - 세팅 카드를 탭하면 문제 목록으로 이동(아래 참고). `GET /api/setting/gym/{id}`(암장 전체 활성 세팅 목록)는 아직 미사용.
+- **섹터 삭제·비활성화 API는 아직 없음** — 확정되는 대로 연동 예정, `reports/2026-08-10_sector-management-api-followups.md` 참고.
+- **문제(루트) CRUD 실연동 완료 (2026-08-10)**: `/gym-manage/setting/:settingId/problem` ([problem_list_screen.dart](lib/features/gym_manage/presentation/problem_list_screen.dart)) — `GET /api/problem/setting/{id}`(목록), `DELETE /api/problem/{id}`(응답은 `{success,data,error}` 래핑이 아니라 flat, 다른 문제/게시판 API와 동일). 도메인 모델은 기존 목업용 `ClimbingProblem`([climbing_problem.dart](lib/features/gym/domain/climbing_problem.dart), V등급·테이프색 중심이라 필드가 다름)과 분리한 `GymProblem`([gym_problem.dart](lib/features/gym/domain/gym_problem.dart)).
+  - 등록/수정 폼([problem_form_screen.dart](lib/features/gym_manage/presentation/problem_form_screen.dart))은 `POST`/`PUT /api/problem`(gymLevelId 필요) 사용. **난이도(gymLevel) 목록 API**(`GET /api/level/gym/{gymId}`, `GymLevel` [gym_level.dart](lib/features/gym/domain/gym_level.dart))로 종목(볼더/리드)별 드롭다운을 구성 — 선택한 종목에 등록된 난이도가 하나도 없으면 드롭다운 대신 **"난이도 등록하기" 버튼**이 나와 `POST /api/level`로 바로 만들고 이어서 문제를 등록할 수 있다(사용자 요청으로 반영).
+    - **`climbType`은 nullable** — 실제 데이터에 `null`인 레벨이 있는 걸 확인함(처음엔 non-nullable `String`으로 파싱하다 전체 목록 조회가 깨지는 버그가 있었음, 2026-08-10 수정). `GymLevel.climbType`을 `String?`로 바꾸고, 폼의 종목 필터는 `climbType == null || climbType == 선택한 종목`으로 처리 — null은 "종목 상관없이 적용"으로 취급한다.
+  - **난이도 색상 표시 + 필터링 실연동 완료 (2026-08-10)**: 문제 응답에 `colorCode`/`levelId`가 추가되어 반영함(`GymProblem.colorCode`/`levelId`, 둘 다 nullable). 문제 목록의 난이도 표시를 텍스트 배지 → **색상 원(스와치) + 이름**으로 변경(공개 화면의 테이프색 원과 같은 스타일, [gym_problem.dart](lib/features/gym/domain/gym_problem.dart)의 `parseHexColor`), 색 없으면 회색 원으로 대체. 목록 상단에 해당 세팅에 실제로 존재하는 난이도만 모아 필터 칩으로 제공. `levelId`가 생겨 수정 폼의 난이도 자동 선택도 이름 매칭 대신 id로 직접 처리하도록 개선(이름 중복 시 실패하던 문제 해소).
+- **난이도(GymLevel) CRUD 실연동 완료 (2026-08-10)**: `GET /api/level/gym/{gymId}`(목록), `POST /api/level`(생성), `PUT /api/level/{id}`(수정), `DELETE /api/level/{id}`(삭제) 전부 연동. 문제관리 탭의 "난이도" 탭(`_LevelTab`, [gym_manage_screen.dart](lib/features/gym_manage/gym_manage_screen.dart))에서 종목(볼더/리드/미지정)별로 묶어 색 스와치 + 이름 + 설명을 보여주고 생성/수정/삭제 — 폼은 [level_form_screen.dart](lib/features/gym_manage/presentation/level_form_screen.dart). 삭제 실패(해당 난이도를 쓰는 문제가 있는 경우 등)는 안내 문구로 대응(세팅 삭제와 같은 패턴). 문제 등록/수정 폼 안의 "난이도 등록하기" 인라인 다이얼로그(`_CreateLevelDialog`, problem_form_screen.dart)는 이 탭과 별개로 유지 — 문제 작성 중 빠르게 새 난이도를 만드는 용도라 구조가 다름.
+  - 수정 시 난이도 프리필: 문제 목록 응답에 `gymLevelId`가 없고 `gymLevel`(이름)만 있어, 이름이 같은 난이도를 찾아 자동 선택하는 방식으로 처리(이름 중복·삭제된 난이도면 자동 선택 실패 가능) — `reports/2026-08-10_sector-management-api-followups.md` 참고.
 
 ## 남은 작업 순서
 

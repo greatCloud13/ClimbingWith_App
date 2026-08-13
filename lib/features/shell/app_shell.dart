@@ -47,7 +47,7 @@ class AppShell extends ConsumerWidget {
                 ),
                 _NavItem(
                   icon: isGymManager ? Icons.admin_panel_settings_rounded : Icons.emoji_events_rounded,
-                  label: isGymManager ? '암장관리' : '운동기록',
+                  label: isGymManager ? '문제관리' : '운동기록',
                   selected: navigationShell.currentIndex == 2,
                   onTap: () => _onTap(2),
                 ),
