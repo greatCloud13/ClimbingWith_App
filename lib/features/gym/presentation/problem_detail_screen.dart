@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/mat_texture_background.dart';
+import '../../auth/application/auth_providers.dart';
+import '../../auth/application/auth_state.dart';
 import '../application/gym_providers.dart';
 import '../application/problem_try_providers.dart';
 import '../data/problem_try_mock_data.dart';
@@ -94,6 +96,19 @@ class _ProblemDetailBody extends ConsumerWidget {
     final myTryCountDisplay = detail.isGuestPreview ? state.sessionHistory.length : detail.myTryCount;
     final lastFallHoldIndex = state.lastSessionFallHoldIndex;
 
+    // 로그인 + userId를 아는 경우에만 실제 과거 트라이 기록을 불러올 수 있다
+    // (userId가 있어야 GET /api/problemTryLog/user/{userId} 호출 가능) — 그 외
+    // (게스트, 구 버전 세션)는 이번 세션에 로컬로 남긴 기록만 보여준다.
+    final authState = ref.watch(authControllerProvider);
+    final knownUserId = authState is AuthAuthenticated ? authState.user.userId : null;
+    final hasRealHistorySource = !detail.isGuestPreview && knownUserId != null;
+    final tryHistory = hasRealHistorySource
+        ? ref.watch(myProblemTryLogsProvider(detail.id)).valueOrNull ?? state.sessionHistory
+        : state.sessionHistory;
+    final tryHistoryNote = detail.isGuestPreview
+        ? '게스트 체험 모드라 트라이 기록이 저장되지 않아요. 이 화면을 나가면 사라져요.'
+        : (hasRealHistorySource ? null : '이번 세션에 새로 기록한 트라이만 보여요. 다시 로그인하면 과거 기록도 볼 수 있어요.');
+
     return Scaffold(
       appBar: AppBar(title: Text(detail.title)),
       body: MatTextureBackground(
@@ -177,15 +192,12 @@ class _ProblemDetailBody extends ConsumerWidget {
               _StatGrid(detail: detail, myTryCountDisplay: myTryCountDisplay, bestHoldIndex: bestHoldIndex),
               const SizedBox(height: 28),
               Text('트라이 기록', style: theme.textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(
-                detail.isGuestPreview
-                    ? '게스트 체험 모드라 트라이 기록이 저장되지 않아요. 이 화면을 나가면 사라져요.'
-                    : '이번 세션에 새로 기록한 트라이만 보여요. 이전 기록 조회는 준비 중이에요.',
-                style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
-              ),
+              if (tryHistoryNote != null) ...[
+                const SizedBox(height: 4),
+                Text(tryHistoryNote, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+              ],
               const SizedBox(height: 10),
-              _TryHistoryList(history: state.sessionHistory, holdCount: detail.holdCount),
+              _TryHistoryList(history: tryHistory, holdCount: detail.holdCount),
             ],
           ),
         ),
@@ -567,7 +579,7 @@ class _TryActionBar extends StatelessWidget {
                         isTopHold: isTopHold,
                         holdIndex: pending,
                         managerTip: managerTips[pending],
-                        onConfirm: (memo) => notifier.fellHere(memo: memo),
+                        onConfirm: (memo) => notifier.fellHere(memo: memo, isClear: isTopHold),
                       ),
                 child: Text(isTopHold ? '완등으로 기록' : '여기서 떨어짐'),
               ),

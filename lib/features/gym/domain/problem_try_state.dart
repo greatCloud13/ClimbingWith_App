@@ -7,7 +7,12 @@ import 'problem_try_log.dart';
 /// 기록을 조회하는 API가 아직 없어(reports/2026-08-10_problem-detail-stats-api-request.md
 /// 참고) 세션 밖 기록은 보여줄 수 없다.
 class ProblemTryState {
-  const ProblemTryState({this.sessionHistory = const [], this.isTryActive = false, this.pendingHoldIndex});
+  const ProblemTryState({
+    this.sessionHistory = const [],
+    this.isTryActive = false,
+    this.pendingHoldIndex,
+    this.activeClearRecordId,
+  });
 
   /// 이번 세션에 실제로 서버에 기록(POST /api/problemTryLog)한 트라이 — 최신순.
   final List<ProblemTryLog> sessionHistory;
@@ -17,6 +22,11 @@ class ProblemTryState {
 
   /// 진행 중인 트라이에서 루트를 탭해 고른(아직 확정 전) 지점.
   final int? pendingHoldIndex;
+
+  /// 이 화면에 머무는 동안의 진행 중(미완등) ClearRecord id — '트라이 시작'을
+  /// 여러 번 눌러도 완등 전까지는 재사용하고, 완등되면 다시 null로 돌아간다.
+  /// 화면을 나갔다 새로 들어오면(조회 API가 없어) 다시 생성된다.
+  final int? activeClearRecordId;
 
   int? get lastSessionFallHoldIndex => sessionHistory.isEmpty ? null : sessionHistory.first.dropPoint;
 }

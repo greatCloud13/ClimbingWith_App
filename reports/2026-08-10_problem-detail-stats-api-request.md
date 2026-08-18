@@ -19,6 +19,18 @@
   2. **"여기서 떨어짐" = `POST /api/problemTryLog`로 시도 기록 생성** — 이미 이렇게 연동돼 있습니다(업데이트 3/4).
   3. **낙하 지점은 `ProblemTryLog.dropPoint`로 모을 예정** — 커뮤니티 낙하 지점 히트맵(루트 토포에서 홀드 색 진하기로 보여주는 부분)이 여기서 나올 데이터라는 뜻으로 이해했습니다.
 - **업데이트 6 (2026-08-10) — `GET /api/problem/{id}/dropPointStats` 연동 완료**: 요청드린 집계 API가 나와서 바로 연동했습니다. `distribution`(홀드 순번 → 인원수)을 루트 토포 히트맵에 그대로 씁니다 — 로그인 사용자는 이제 낙하 지점 분포도 실데이터입니다([gym_api.dart](../lib/features/gym/data/gym_api.dart)의 `fetchDropPointStats`, [gym_providers.dart](../lib/features/gym/application/gym_providers.dart)의 `dropPointStatsProvider`). **게스트 체험 모드는 여전히 목업**을 씁니다 — 체험 모드의 `holdCount` 자체가 목업이라 실제 `distribution`의 `dropPoint` 값과 안 맞을 수 있어서, 게스트에게는 일관성을 위해 계속 목업 히트맵을 보여줍니다. 이제 이 화면에 남은 목업은 "점장님의 팁"과 게스트 체험 모드 전용 데이터뿐입니다.
+- **업데이트 7 (2026-08-10) — `clearRecord` API 연동 (부분)**: 주신 완등 기록(ClearRecord) API 중, 사용자 확인을 거쳐 아래 범위로 연동했습니다.
+  - "트라이 시작"을 누르면 이 화면에 머무는 동안 **한 번만** `POST /api/clearRecord`(진행 중, `isClear=false`/`startDate=오늘`)를 만들고, 완등 전까지 재사용합니다(같은 화면에서 "트라이 시작"을 여러 번 눌러도 기존 진행 중 기록을 계속 씁니다). 완등(마지막 홀드에서 "완등으로 기록")하면 `PATCH /api/clearRecord/{id}/clear`로 완등 처리합니다. [problem_try_providers.dart](../lib/features/gym/application/problem_try_providers.dart)
+  - ~~**알려진 한계**: user+problem 기준으로 "이미 진행 중인 ClearRecord가 있는지" 조회하는 API가 없어서...~~ → **업데이트 8에서 해결(API는 받았으나 다른 이유로 아직 연동 보류)**.
+- **업데이트 8 (2026-08-10) — `GET /api/clearRecord/user/{userId}/problem/{problemId}/inProgress` 받음, 연동은 보류**: 위에서 요청드린 진행 중 기록 조회 API를 주셨습니다 — `fetchInProgressClearRecord`로 [gym_api.dart](../lib/features/gym/data/gym_api.dart)에 메서드는 추가해뒀지만, **아직 `ProblemTryNotifier`에 실제로 연결하지 않았습니다**. 이유: 이 API도 경로에 로그인 사용자의 숫자 `userId`가 필요한데, 클라이언트는 여전히 그 값을 모릅니다(업데이트 3에서부터 계속 열려있던 문제 — 로그인 응답에 숫자 id가 없음). 이 상태로 무리하게 연동하면 잘못된 값을 넣거나 기능이 반쪽으로 남을 것 같아, 말씀하신 대로 **구현을 멈추고 먼저 요청드립니다**.
+  - **필요한 것 (택1)**: (1) 로그인 응답(`POST /api/auth/login`)에 숫자 `userId`(또는 `id`) 필드를 추가해주시거나, (2) `GET /api/auth/me`처럼 토큰만으로 현재 로그인 사용자 정보(숫자 id 포함)를 조회하는 API를 추가해주세요. 이 값이 생기면 아래 세 가지를 한 번에 연동할 수 있습니다 — (a) 이번 `inProgress` 조회로 "트라이 시작" 시 기존 진행 중 기록 재사용, (b) `GET /api/problemTryLog/user/{userId}`로 문제 상세의 "트라이 기록" 과거 이력 표시, (c) `GET /api/clearRecord/user/{userId}` 계열(완등 기록/랭킹 탭에서 쓸 것으로 예상).
+- **업데이트 9 (2026-08-10) — 로그인 응답에 `userId` 추가 완료, (a)/(b) 연동 완료**: 로그인 응답에 `userId`가 추가됐다고 확인해주셔서 바로 반영했습니다.
+  - `CurrentUser.userId`([current_user.dart](../lib/features/auth/domain/current_user.dart))로 저장 — 기존에 저장돼 있던 세션(이 변경 전 로그인)은 이 필드가 없어 `null`로 복원되고, 재로그인해야 채워집니다(안전하게 nullable로 처리해 기존 세션 복원이 깨지지 않도록 함).
+  - **(a) 진행 중 완등 기록 재사용**: `ProblemTryNotifier.startTry()`가 이제 `userId`가 있으면 `GET /api/clearRecord/user/{userId}/problem/{problemId}/inProgress`로 먼저 조회하고, 있으면 그 기록을 재사용, 없으면 새로 생성합니다.
+  - **(b) "트라이 기록" 과거 이력 표시**: `myProblemTryLogsProvider`([gym_providers.dart](../lib/features/gym/application/gym_providers.dart))가 `GET /api/problemTryLog/user/{userId}`(최근 100건)를 조회해 `problemId`로 걸러 보여줍니다. `userId`를 아는 로그인 사용자는 이제 "이번 세션에 새로 기록한 것만" 문구 없이 실제 과거 기록이 보이고, 새 트라이를 기록하면 자동으로 갱신됩니다. userId를 모르는(구 세션) 경우엔 "다시 로그인하면 과거 기록도 볼 수 있어요" 안내로 대체.
+  - **(c) `GET /api/clearRecord/user/{userId}` 계열**은 아직 미착수입니다 — 완등 기록/랭킹(`RecordScreen`) 쪽 새 화면 작업이 될 것 같아 별도로 진행 여부를 여쭤보겠습니다.
+  - **이번 범위에서 제외한 것(사용자 확인)**: 완등 인증 영상(`videoUrl`) 입력, 다른 사람 완등 영상 갤러리(`GET /api/clearRecord/existVideo/...`) — 둘 다 후속 작업으로 미룸.
+  - **아직 안 쓰는 나머지 API**: `PUT /api/clearRecord/{id}`, `DELETE /api/clearRecord/{id}`, `GET /api/clearRecord/user/{userId}`(+`/setting/{settingId}`, `/gym/{gymId}`), `GET /api/clearRecord/stats/user/{userId}/gym/{gymId}` — 사용자별 조회·통계는 기존에 막힌 숫자 `userId` 문제와 동일하게 걸려있어서, 그 문제가 풀리면 "완등 기록/랭킹" 탭 쪽에서 활용할 수 있을 것 같습니다.
 
 ## 필요한 데이터
 

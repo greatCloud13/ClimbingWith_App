@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/application/auth_state.dart';
 import '../data/bookmark_api.dart';
 import '../data/gym_api.dart';
 import '../data/problem_try_mock_data.dart';
@@ -9,6 +10,7 @@ import '../domain/gym_detail.dart';
 import '../domain/gym_level.dart';
 import '../domain/gym_problem.dart';
 import '../domain/gym_problem_detail.dart';
+import '../domain/problem_try_log.dart';
 import '../domain/sector_detail.dart';
 
 final Provider<GymApi> gymApiProvider = Provider<GymApi>(
@@ -65,6 +67,19 @@ final gymProblemDetailProvider = FutureProvider.family<GymProblemDetail, int>((r
 final dropPointStatsProvider = FutureProvider.family<DropPointStats, int>(
   (ref, problemId) => ref.watch(gymApiProvider).fetchDropPointStats(problemId),
 );
+
+/// 로그인 사용자의 이 문제에 대한 과거 트라이 기록 — `GET /api/problemTryLog/user/{userId}`에는
+/// 문제별 필터가 없어 클라이언트에서 problemId로 걸러 쓴다(최근 100건 안에서만
+/// 찾으므로, 트라이가 아주 많은 사용자는 오래된 기록을 놓칠 수 있다). userId를
+/// 모르면(구 버전 세션 등) 빈 목록을 반환 — 화면에서는 이 경우 세션 로컬 기록으로 대체한다.
+final myProblemTryLogsProvider = FutureProvider.family<List<ProblemTryLog>, int>((ref, problemId) async {
+  final authState = ref.watch(authControllerProvider);
+  if (authState is! AuthAuthenticated) return const [];
+  final userId = authState.user.userId;
+  if (userId == null) return const [];
+  final page = await ref.watch(gymApiProvider).fetchTryLogsByUser(userId, size: 100);
+  return page.logs.where((log) => log.problemId == problemId).toList();
+});
 
 /// GET /api/level/gym/{gymId} — 암장 난이도(레벨) 목록. 문제 등록/수정 폼의
 /// 드롭다운에서 쓴다.

@@ -3,6 +3,7 @@ import '../../../core/network/api_exception.dart';
 import '../domain/climbing_discipline.dart';
 import '../domain/gym_detail.dart';
 import '../domain/climbing_setting.dart';
+import '../domain/clear_record.dart';
 import '../domain/drop_point_stats.dart';
 import '../domain/gym_post.dart';
 import '../domain/gym_problem.dart';
@@ -268,6 +269,44 @@ class GymApi {
   Future<DropPointStats> fetchDropPointStats(int id) async {
     final res = await _dio.get('/api/problem/$id/dropPointStats');
     return DropPointStats.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// 문제 트라이 시작 — `isClear=false`/`startDate=오늘`/`clearDate=null`로 생성된다.
+  Future<ClearRecord> createClearRecord({required int problemId, String? videoUrl}) async {
+    try {
+      final res = await _dio.post(
+        '/api/clearRecord',
+        data: {'problemId': problemId, if (videoUrl != null && videoUrl.isNotEmpty) 'videoUrl': videoUrl},
+      );
+      return ClearRecord.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// 진행 중이던 트라이 기록을 완등 처리 — `isClear=true`, `clearDate`(미입력 시 오늘)로 갱신된다.
+  Future<ClearRecord> clearProblemRecord(int id) async {
+    try {
+      final res = await _dio.patch('/api/clearRecord/$id/clear');
+      return ClearRecord.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// user+problem 기준 진행 중인(isClear=false) 완등 기록 조회 — 없으면 null.
+  /// **아직 UI에서 안 씀**: 로그인 사용자의 숫자 userId를 클라이언트가 모르고
+  /// 있어서(reports/2026-08-10_problem-detail-stats-api-request.md 참고) 호출할
+  /// 방법이 없다. userId 노출 방안이 확정되면 [ProblemTryNotifier.startTry]에서
+  /// 이 API로 기존 진행 중 기록을 먼저 찾도록 교체할 예정.
+  Future<ClearRecord?> fetchInProgressClearRecord({required int userId, required int problemId}) async {
+    try {
+      final res = await _dio.get('/api/clearRecord/user/$userId/problem/$problemId/inProgress');
+      return ClearRecord.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      throw ApiException.fromDioException(e);
+    }
   }
 
   /// 신규 문제 등록. `gymLevelId`는 [fetchLevelsByGym]으로 조회한 난이도 단계의 id.
