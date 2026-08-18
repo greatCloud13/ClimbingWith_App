@@ -16,6 +16,7 @@ class AuthRepository {
   Future<CurrentUser> login(LoginRequest request) async {
     final response = await _api.login(request);
     final user = CurrentUser(
+      userId: response.userId,
       username: response.username,
       nickname: response.nickname,
       role: response.role,

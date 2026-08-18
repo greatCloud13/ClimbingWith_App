@@ -34,6 +34,7 @@ class LoginRequest {
 /// 401 응답을 받았을 때 반응적으로 로그아웃 처리한다.
 class LoginResponse {
   const LoginResponse({
+    required this.userId,
     required this.token,
     required this.username,
     required this.role,
@@ -41,6 +42,7 @@ class LoginResponse {
     this.managedGymId,
   });
 
+  final int userId;
   final String token;
   final String username;
   final String role;
@@ -48,6 +50,7 @@ class LoginResponse {
   final int? managedGymId;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
+    userId: json['userId'] as int,
     token: json['token'] as String,
     username: json['username'] as String,
     role: json['role'] as String,
