@@ -74,7 +74,7 @@ lib/
       presentation/  # home_screen.dart, notice_detail_screen.dart
     more/            # more_screen.dart (최소 구현)
     profile/         # profile_screen.dart (최소 구현, 로그아웃 포함)
-    record/          # record_screen.dart — 완등 기록/랭킹
+    record/          # record_screen.dart — 최근 완등 기록(목업, 통계·랭킹은 숨김 처리됨)
     shell/           # app_shell.dart, splash_screen.dart, record_or_manage_screen.dart
   main.dart          # ProviderScope + MaterialApp.router
 ```
@@ -99,15 +99,16 @@ lib/
 
 바텀탭: 홈 / 암장 / 운동기록(또는 문제관리) / 프로필 / 더보기. 4번째 탭은 `CurrentUser.role`이 `GYM_MANAGER`면 "문제관리"(`GymManageScreen`, [gym_manage_screen.dart](lib/features/gym_manage/gym_manage_screen.dart))로, 그 외엔 "운동기록"(`RecordScreen`)으로 내용과 라벨·아이콘이 함께 바뀐다 — 경로(`/record`)는 고정, [record_or_manage_screen.dart](lib/features/shell/record_or_manage_screen.dart)에서 분기. **게시판 CRUD는 이 탭이 아니라 홈 화면 쪽에 있다** — 문제관리 탭은 문제(루트) 관리 전용.
 
-**로그인 없이도 앱 사용 가능(게스트 모드)**: 앱을 켰을 때 첫 화면은 로그인이 아니라 홈이다. `/profile`, `/record`, `/gym-manage/board`(`/write` 포함)만 로그인을 요구하고(`_authRequiredPaths`, [app_router.dart](lib/core/router/app_router.dart)), `/home`·`/gym`·`/more`는 게스트도 접근 가능. 홈 화면 안에서 개인화 섹션(즐겨찾기 클라이밍장/스트릭/친구활동)은 로그인 상태일 때만 보이고, 비로그인 시 그 자리에 로그인 유도 카드(`_GuestPromptCard`)가 대신 표시된다.
+**로그인 없이도 앱 사용 가능(게스트 모드)**: 앱을 켰을 때 첫 화면은 로그인이 아니라 홈이다. `/profile`, `/record`, `/gym-manage/board`(`/write` 포함)만 로그인을 요구하고(`_authRequiredPaths`, [app_router.dart](lib/core/router/app_router.dart)), `/home`·`/gym`·`/more`는 게스트도 접근 가능. 홈 화면 안에서 개인화 섹션(즐겨찾기 클라이밍장)은 로그인 상태일 때만 보이고, 비로그인 시 그 자리에 로그인 유도 카드(`_GuestPromptCard`)가 대신 표시된다.
 
-- `/home` — [home_screen.dart](lib/features/home/presentation/home_screen.dart): "오늘은 어느 암장으로 가실건가요?" 헤더 + 알림 버튼(공개). 로그인 시에만: 연속방문 스트릭 카드, 친구 활동 가로 카드, 그리고 즐겨찾기 클라이밍장 **세로 피드** — 카드 하나가 [암장이름 + 메인 사진 + 그 암장에 종속된 공지]로 구성됨. **공지는 전역이 아니라 암장별로 붙는다** — 처음엔 전역 공지 슬라이드로 잘못 구현했다가 사용자 와이어프레임을 받고 암장별 종속 구조로 재작업함.
+- `/home` — [home_screen.dart](lib/features/home/presentation/home_screen.dart): "오늘은 어느 암장으로 가실건가요?" 헤더 + 알림 버튼(공개). 로그인 시에만: 즐겨찾기 클라이밍장 **세로 피드** — 카드 하나가 [암장이름 + 메인 사진 + 그 암장에 종속된 공지]로 구성됨. **공지는 전역이 아니라 암장별로 붙는다** — 처음엔 전역 공지 슬라이드로 잘못 구현했다가 사용자 와이어프레임을 받고 암장별 종속 구조로 재작업함.
   - **즐겨찾기 암장 + 공지는 실제 API 연동 완료**: `GET /api/home` → `{gymCardList: [{gymId, gymName, address, imageUrl, notices: [{postId, noticeTitle, date}]}]}` (토큰 기반, 파라미터 없음, 공지 최대 5개). [home_api.dart](lib/features/home/data/home_api.dart) / [home_providers.dart](lib/features/home/application/home_providers.dart)에서 `homeGymCardsProvider`(FutureProvider)로 로딩/에러/빈 상태까지 처리. 카드당 공지는 `_GymNoticeCarousel`이 5초 간격으로 자동 슬라이드하며 전부 보여줌 (수동 스와이프로도 넘길 수 있음) — 공지가 1개뿐이면 슬라이드 없이 고정. 공지 상세는 아직 본문 API가 없어 안내 문구로 대체.
   - 로그아웃 상태 또는 북마크한 암장이 없는 경우 둘 다 "등록된 암장 리스트 보기" 버튼으로 `/gym`으로 안내 (`_GuestPromptCard`, `_EmptyGymBookmarksCard`)
-  - 스트릭/친구활동은 아직 API 없어 목업 데이터 사용 중 (`reports/` 참고)
+  - **연속방문 스트릭 / 친구 활동 숨김 처리 (2026-08-18)**: API 없이 목업으로만 있던 두 섹션(`_StreakStatCard`, `_FriendActivityCard`)을 사용자 확인 하에 화면에서 제거함 — 목업 데이터 파일(`home_mock_data.dart`, `friend_activity.dart`)도 함께 삭제. 실제 API 연동 시점에 다시 추가 예정.
   - **GYM_MANAGER 전용 홈**: role이 `GYM_MANAGER`면 위 일반 홈 대신 `_GymManagerHome`이 보인다. 캘린더는 아직 API가 없어 placeholder(`reports/` 참고). **게시판 관리(CRUD)는 실제 API 연동 완료 (2026-08-10)**: 카드를 탭하면 `/gym-manage/board`([gym_manager_board_screen.dart](lib/features/gym_manage/presentation/gym_manager_board_screen.dart))로 이동 — 조회는 공개 게시판과 같은 `GET /api/post/gym/{gymId}`(`managedGymId` 사용)를 재사용하고, 작성은 `POST /api/post`(경로에 gymId 없이 인증된 매니저의 관리 암장으로 서버가 자동 결정), 수정은 `PUT /api/post/{postId}`, 삭제는 `DELETE /api/post/{postId}`, 수정 폼 프리필은 `GET /api/post/{postId}`(상세 조회) 사용. 글쓰기/수정 폼은 `/gym-manage/board/write`([gym_post_form_screen.dart](lib/features/gym_manage/presentation/gym_post_form_screen.dart)).
 - `/gym` — [gym_screen.dart](lib/features/gym/gym_screen.dart): **암장 검색 실연동 완료 (2026-08-13)**: 목업 목록을 `GET /api/gym/search`로 교체. 상단 검색창(입력 400ms 디바운스) + 바로 아래 결과 리스트로, 조건을 지정하지 않으면 활성 암장 전체가 반환된다. 이번 범위는 키워드 검색만 구현했고, API가 지원하는 `gymType`/`hashtag`/`isActive` 필터 UI는 사용자 확인 하에 다음 단계로 미룸.
-- `/record` — 기존 RecordScreen 재사용
+- `/record` — [record_screen.dart](lib/features/record/record_screen.dart). **이번달 완등/최고 난이도/연속 방문 통계, 이번주 랭킹은 숨김 처리 (2026-08-18)**: 전부 API 없이 목업이던 부분이라 사용자 확인 하에 제거하고 "최근 완등 기록"만 남김 — 실제 API 연동 시점에 다시 추가 예정.
+  - **"최근 완등 기록" 실연동 완료 (2026-08-19)**: `GET /api/clearRecord/user/{userId}`(최신순, `size=10`)로 교체. 응답의 `problemId`/`gymId`/`sectorId`로 카드를 탭하면 문제 상세 화면(`/gym/:id/sector/:sectorId/problem/:problemId`)까지 정확히 이동한다 — 처음 요청 시 `problemId`가 빠져 있어 카드 탭 네비게이션을 만들지 못하고 대기했다가, 추가된 뒤 진행함(`reports/2026-08-19_recent-clear-records-api-request.md` 참고). 난이도는 V등급이 아니라 암장별 커스텀 레벨(`level`/`levelColorCode`)이라 `GradeBadge` 대신 다른 화면들과 같은 색 스와치+이름 방식으로 표시. `/record`는 로그인 필수 라우트라 게스트 분기는 없지만, `userId`가 없는 구 세션(재로그인 전)은 안내 문구로 대체. [record_api.dart](lib/features/record/data/record_api.dart) / [record_providers.dart](lib/features/record/application/record_providers.dart).
 - `/profile`, `/more` — 최소 구현 (상세 디자인은 사용자가 별도 설계 예정)
 - 기존 `FeedScreen`(커뮤니티 피드, [feed_screen.dart](lib/features/feed/feed_screen.dart))은 5탭 구성에서 빠져 현재 라우팅에 연결되어 있지 않음 — 삭제하지 않고 보류 (재사용 여부 확인 필요)
 
