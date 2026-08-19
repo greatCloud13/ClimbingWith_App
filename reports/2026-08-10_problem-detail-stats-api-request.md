@@ -5,6 +5,7 @@
 - **배경**: 일반 사용자용 문제 상세조회 화면([problem_detail_screen.dart](../lib/features/gym/presentation/problem_detail_screen.dart))을 "루트 토포" 형태(리드는 좌→우, 볼더는 하→상, 10개 단위 구간 + 낙하 지점 히트맵)로 구현. 화면 자체는 완성했지만 아래 통계 데이터는 현재 문제 API(`GET /api/problem/{id}`, `GET /api/problem/setting/{id}`)에 없어 문제 id를 시드로 한 목업([problem_try_mock_data.dart](../lib/features/gym/data/problem_try_mock_data.dart))으로 채워 넣은 상태입니다.
 - **업데이트 (2026-08-10)**: "트라이 시작"/"여기서 떨어짐" 버튼을 실제로 동작하도록 만들었습니다 — 아래 2번 항목의 답이 "네, 별도 액션 필요"인 셈이라, 우선 [problem_try_providers.dart](../lib/features/gym/application/problem_try_providers.dart)의 `StateNotifierProvider`로 로컬 상태에만 기록을 쌓는 방식으로 구현해뒀습니다(트라이 기록 리스트 UI 포함). 세션 동안만 유지되고 앱을 새로 켜면 초기화됩니다 — 아래 API가 생기면 이 로컬 상태를 실제 저장/조회로 교체할 예정입니다.
 - **업데이트 2 (2026-08-10) — 낙하 메모 + 점장님의 팁**: "여기서 떨어짐"을 누르면 확인 모달이 뜨도록 바꿨습니다. 모달에는 (1) "어떤 홀드였나요?" 메모 입력(선택, 트라이 기록에 함께 저장)과 (2) 그 홀드에 등록된 **"점장님의 팁"**(홀드별 공략 조언, 현재는 홀드 순번 기준 목업)을 함께 보여줍니다. **신규 요청사항**: "점장님의 팁"은 사용자에게는 조회 전용이고 실제로는 GYM_MANAGER가 문제(또는 홀드 단위)에 팁을 작성/수정하는 기능이 필요합니다 — (1) 팁이 홀드 단위로 붙는지 문제(루트) 전체 단위로 붙는지, (2) 매니저용 문제관리 화면에 팁 작성 CRUD를 추가해야 하는지 확인 부탁드립니다.
+  - **업데이트 (2026-08-19) — 일단 숨김 처리**: 매니저가 팁을 작성하는 기능이 없어 목업만 계속 보여주는 상태였는데, 사용자 확인 하에 "점장님의 팁" UI 자체를 숨김 처리했습니다(`_ManagerTipCard`, `mockManagerTips` 제거). 위 CRUD 관련 API가 확정되면 다시 추가하겠습니다 — 이 요청사항은 계속 열어둡니다.
 - **업데이트 3 (2026-08-10) — `GET /api/problem/{id}/detail` + `problemTryLog` CRUD 연동**: 주신 API로 연동했습니다.
   - `GET /api/problem/{id}/detail`의 `holdCount`, `clearCount`, `myBestDropPoint`를 그대로 씁니다 — 홀드 갯수/클리어 인원/"내 최고 도달" 통계가 이제 실데이터입니다. [gym_problem_detail.dart](../lib/features/gym/domain/gym_problem_detail.dart)
   - "여기서 떨어짐" 확인 모달에서 "기록하기"를 누르면 실제로 `POST /api/problemTryLog`를 호출합니다(`problemId`/`dropPoint`/`memo`/`tryDate`). 성공하면 문제 상세를 다시 불러와 서버가 재계산한 `myBestDropPoint`를 반영합니다. `userId`는 로그인한 사용자 기준으로 서버가 정하는 것으로 보고 요청 본문에 넣지 않았습니다 — 맞는지 확인 부탁드립니다.
@@ -31,6 +32,14 @@
   - **(c) `GET /api/clearRecord/user/{userId}` 계열**은 아직 미착수입니다 — 완등 기록/랭킹(`RecordScreen`) 쪽 새 화면 작업이 될 것 같아 별도로 진행 여부를 여쭤보겠습니다.
   - **이번 범위에서 제외한 것(사용자 확인)**: 완등 인증 영상(`videoUrl`) 입력, 다른 사람 완등 영상 갤러리(`GET /api/clearRecord/existVideo/...`) — 둘 다 후속 작업으로 미룸.
   - **아직 안 쓰는 나머지 API**: `PUT /api/clearRecord/{id}`, `DELETE /api/clearRecord/{id}`, `GET /api/clearRecord/user/{userId}`(+`/setting/{settingId}`, `/gym/{gymId}`), `GET /api/clearRecord/stats/user/{userId}/gym/{gymId}` — 사용자별 조회·통계는 기존에 막힌 숫자 `userId` 문제와 동일하게 걸려있어서, 그 문제가 풀리면 "완등 기록/랭킹" 탭 쪽에서 활용할 수 있을 것 같습니다.
+- **업데이트 10 (2026-08-18) — 통계 카드에 트라이 시작일자/완등일자 추가, 완등일자는 알려진 한계 있음**: 홀드 갯수·내 트라이·내 최고 도달·클리어 인원 카드에 이어 "트라이 시작일자"/"완등일자"를 추가했습니다.
+  - **시작일자**: `GET /api/clearRecord/user/{userId}/problem/{problemId}/inProgress`로 진행 중인 완등 기록을 조회해 `startDate`를 보여줍니다. 없으면(트라이한 적이 없으면) "미시작" — 이 부분은 100% 정확합니다.
+  - ~~**완등일자 — 한계 있음**: ... 정확하게 고치려면 ... API가 필요합니다.~~ → **업데이트 11에서 다른 방식으로 해결(신규 API 불필요)**.
+- **업데이트 11 (2026-08-18) — 시작일자/완등일자를 `problemTryLog`에서 구하는 방식으로 교체**: `GET /api/problemTryLog/user/{userId}`(이미 "트라이 기록" 리스트에 쓰던 것과 같은 API, `myProblemTryLogsProvider`)로 바꿔서 풀었습니다 — 제안 감사합니다. `ClearRecord` 조회 API보다 오히려 나은 점이 있어서 이쪽으로 완전히 교체했습니다.
+  - **시작일자** = 문제별 트라이 기록 중 가장 오래된 `tryDate`. **완등일자** = `dropPoint >= holdCount`인 기록 중 가장 최근 `tryDate`. 둘 다 없으면 "미시작"/"미완등".
+  - **`ClearRecord`의 `inProgress` 조회보다 나은 점**: (1) `problemTryLog`는 `problemId`가 정확해 헷갈릴 일이 없고(완등 기록 리스트 API의 `problemName` 문자열 매칭 문제가 없음), (2) 과거 세션에 완등한 기록도 (최근 100건 안에 있으면) 잡혀서 "이번 세션에 완등한 것만 보임"이라는 한계가 사라졌습니다.
+  - **남은 한계**: `myProblemTryLogsProvider`가 최신 100건만 조회하기 때문에, 트라이가 아주 많은 사용자는 오래된 시작일자/완등일자를 놓칠 수 있습니다(기존에 "트라이 기록" 리스트에도 있던 것과 동일한 한계).
+  - 이제 화면에서 `ClearRecord`는 "트라이 시작 시 기존 진행 중 기록 재사용 + 완등 처리"용으로만 쓰고, 날짜 표시에는 관여하지 않습니다. 이전에 요청드렸던 "완등 여부 무관 최신 기록 조회 API"는 더 이상 필요 없어졌습니다.
 
 ## 필요한 데이터
 

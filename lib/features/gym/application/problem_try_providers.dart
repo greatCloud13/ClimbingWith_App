@@ -12,13 +12,15 @@ import '../domain/problem_try_state.dart';
 /// 이 API가 403이라 저장할 수 없어**, 서버 호출 없이 세션 로컬에만 기록을
 /// 남기는 "체험 모드"로 동작한다(화면을 나가면 사라짐).
 ///
-/// '트라이 시작'은 `GET /api/clearRecord/user/{userId}/problem/{problemId}/inProgress`로
-/// 기존에 진행 중이던(isClear=false) 완등 기록이 있는지 먼저 확인하고, 없으면
+/// '트라이 시작'은 [inProgressClearRecordProvider](gym_providers.dart)로 기존에
+/// 진행 중이던(isClear=false) 완등 기록이 있는지 먼저 확인하고, 없으면
 /// `POST /api/clearRecord`로 새로 만든다 — userId를 모르면(구 버전 세션 등)
 /// 조회를 건너뛰고 바로 생성한다. 완등(dropPoint == holdCount)으로 기록하면
 /// `PATCH /api/clearRecord/{id}/clear`로 완등 처리하고 다음 트라이를 위해
-/// 다시 null로 돌아간다. 이 기록 조회/생성/완등 처리는 부가 기능이라 실패해도
-/// problemTryLog 기록 자체는 계속 진행한다.
+/// 다시 null로 돌아간다. 시작일자/완등일자 표시는 이 ClearRecord가 아니라
+/// problemTryLog 기록에서 직접 구한다([problem_detail_screen.dart] 참고) — 이
+/// 기록 조회/생성/완등 처리는 부가 기능이라 실패해도 problemTryLog 기록
+/// 자체는 계속 진행한다.
 class ProblemTryNotifier extends StateNotifier<ProblemTryState> {
   ProblemTryNotifier(this._ref, this._problemId) : super(const ProblemTryState());
 
@@ -36,14 +38,10 @@ class ProblemTryNotifier extends StateNotifier<ProblemTryState> {
     );
 
     if (state.activeClearRecordId != null || !_isAuthenticated) return;
-    final authState = _ref.read(authControllerProvider);
-    final userId = authState is AuthAuthenticated ? authState.user.userId : null;
     try {
-      final api = _ref.read(gymApiProvider);
-      final existing = userId == null
-          ? null
-          : await api.fetchInProgressClearRecord(userId: userId, problemId: _problemId);
-      final record = existing ?? await api.createClearRecord(problemId: _problemId);
+      final existing = await _ref.read(inProgressClearRecordProvider(_problemId).future);
+      final record = existing ?? await _ref.read(gymApiProvider).createClearRecord(problemId: _problemId);
+      _ref.invalidate(inProgressClearRecordProvider(_problemId));
       state = ProblemTryState(
         sessionHistory: state.sessionHistory,
         activeClearRecordId: record.id,
@@ -99,9 +97,16 @@ class ProblemTryNotifier extends StateNotifier<ProblemTryState> {
         try {
           await api.clearProblemRecord(clearRecordId);
           clearRecordId = null; // 완등 처리 완료 — 다음 트라이는 새 기록으로 시작
+          _ref.invalidate(inProgressClearRecordProvider(_problemId));
         } catch (_) {
           // 완등 처리 실패해도 problemTryLog 기록 자체는 이미 성공했으니 무시.
         }
+
+        // 완등 인원(clearUserCount)이 바뀌므로, 이 문제가 속한 세팅의 문제
+        // 목록(섹터 문제 조회 화면·매니저 문제관리 화면이 함께 쓰는 캐시)도
+        // 무효화해야 화면을 나갔다 돌아왔을 때 갱신된 숫자가 보인다.
+        final settingId = _ref.read(gymProblemDetailProvider(_problemId)).valueOrNull?.settingId;
+        if (settingId != null) _ref.invalidate(problemsBySettingProvider(settingId));
       }
 
       state = ProblemTryState(sessionHistory: [log, ...state.sessionHistory], activeClearRecordId: clearRecordId);

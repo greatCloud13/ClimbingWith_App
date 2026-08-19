@@ -24,8 +24,9 @@ bool _isLead(String problemType) => problemType.toUpperCase() == 'LEAD';
 /// 내 최고 도달 지점/클리어 인원은 `GET /api/problem/{id}/detail`, 커뮤니티
 /// 낙하 지점 분포(히트맵)는 `GET /api/problem/{id}/dropPointStats` 실데이터다
 /// (게스트 체험 모드에서는 holdCount 자체가 목업이라 이 히트맵도 문제 id 기준
-/// 목업[problem_try_mock_data.dart]을 대신 쓴다). 점장님의 팁은 아직 API가
-/// 없어 계속 목업이다. '트라이 시작'/'여기서 떨어짐'은 로그인 사용자라면
+/// 목업[problem_try_mock_data.dart]을 대신 쓴다). **점장님의 팁은 매니저가
+/// 작성하는 기능이 없어 사용자 확인 하에 숨김 처리함**(reports/2026-08-10_problem-detail-stats-api-request.md
+/// 참고). '트라이 시작'/'여기서 떨어짐'은 로그인 사용자라면
 /// `POST /api/problemTryLog`로 실제 기록되지만, 문제 단위 과거 기록 조회
 /// API가 아직 없어 화면에는 이번 세션에 새로 기록한 것만 보인다
 /// (reports/2026-08-10_problem-detail-stats-api-request.md 참고). **`/detail`
@@ -86,7 +87,6 @@ class _ProblemDetailBody extends ConsumerWidget {
         ? null
         : ref.watch(dropPointStatsProvider(detail.id)).valueOrNull;
     final communityFallCounts = dropStats?.distribution ?? mockCommunityFallCounts(detail.id, detail.holdCount);
-    final managerTips = mockManagerTips(detail.id, detail.holdCount);
     // 게스트 체험 모드는 서버 기준 내 기록이 없어(myBestDropPoint/myTryCount 항상 0)
     // 이번 세션에 로컬로 남긴 기록으로 대신 계산한다.
     final sessionBest = state.sessionHistory.isEmpty
@@ -108,6 +108,14 @@ class _ProblemDetailBody extends ConsumerWidget {
     final tryHistoryNote = detail.isGuestPreview
         ? '게스트 체험 모드라 트라이 기록이 저장되지 않아요. 이 화면을 나가면 사라져요.'
         : (hasRealHistorySource ? null : '이번 세션에 새로 기록한 트라이만 보여요. 다시 로그인하면 과거 기록도 볼 수 있어요.');
+
+    // "시작일자"/"완등일자"는 별도 API 없이 트라이 기록(tryHistory)에서 바로
+    // 구한다 — problemId가 명확하고(problemName 매칭이 아님) 과거 세션 기록도
+    // 포함돼 ClearRecord의 날짜보다 더 정확하다. 시작일자 = 가장 오래된
+    // 기록의 날짜, 완등일자 = dropPoint가 holdCount 이상인 기록 중 가장 최근
+    // 날짜 — 둘 다 없으면 각각 "미시작"/"미완등".
+    final startDateLabel = _startDateLabel(tryHistory);
+    final clearDateLabel = _clearDateLabel(tryHistory, detail.holdCount);
 
     return Scaffold(
       appBar: AppBar(title: Text(detail.title)),
@@ -186,10 +194,15 @@ class _ProblemDetailBody extends ConsumerWidget {
                 state: state,
                 notifier: notifier,
                 holdCount: detail.holdCount,
-                managerTips: managerTips,
               ),
               const SizedBox(height: 28),
-              _StatGrid(detail: detail, myTryCountDisplay: myTryCountDisplay, bestHoldIndex: bestHoldIndex),
+              _StatGrid(
+                detail: detail,
+                myTryCountDisplay: myTryCountDisplay,
+                bestHoldIndex: bestHoldIndex,
+                startDateLabel: startDateLabel,
+                clearDateLabel: clearDateLabel,
+              ),
               const SizedBox(height: 28),
               Text('트라이 기록', style: theme.textTheme.titleLarge),
               if (tryHistoryNote != null) ...[
@@ -528,17 +541,11 @@ class _TopoLegend extends StatelessWidget {
 }
 
 class _TryActionBar extends StatelessWidget {
-  const _TryActionBar({
-    required this.state,
-    required this.notifier,
-    required this.holdCount,
-    required this.managerTips,
-  });
+  const _TryActionBar({required this.state, required this.notifier, required this.holdCount});
 
   final ProblemTryState state;
   final ProblemTryNotifier notifier;
   final int holdCount;
-  final Map<int, String> managerTips;
 
   @override
   Widget build(BuildContext context) {
@@ -578,7 +585,6 @@ class _TryActionBar extends StatelessWidget {
                         context,
                         isTopHold: isTopHold,
                         holdIndex: pending,
-                        managerTip: managerTips[pending],
                         onConfirm: (memo) => notifier.fellHere(memo: memo, isClear: isTopHold),
                       ),
                 child: Text(isTopHold ? '완등으로 기록' : '여기서 떨어짐'),
@@ -592,13 +598,11 @@ class _TryActionBar extends StatelessWidget {
 }
 
 /// '여기서 떨어짐'/'완등으로 기록'을 누르면 뜨는 확인 모달 — "어떤 홀드였나요?"
-/// 메모(선택 입력)와 그 홀드에 등록된 점장님의 팁을 함께 보여준 뒤 실제로
-/// POST /api/problemTryLog를 호출해 기록을 확정한다.
+/// 메모(선택 입력)를 받은 뒤 실제로 POST /api/problemTryLog를 호출해 기록을 확정한다.
 Future<void> _showFallMemoSheet(
   BuildContext context, {
   required bool isTopHold,
   required int holdIndex,
-  required String? managerTip,
   required Future<bool> Function(String? memo) onConfirm,
 }) {
   final controller = TextEditingController();
@@ -640,8 +644,6 @@ Future<void> _showFallMemoSheet(
                     maxLength: 100,
                     decoration: const InputDecoration(hintText: '예: 왼손 크림프가 미끄러웠어요 (선택 입력)'),
                   ),
-                  const SizedBox(height: 4),
-                  _ManagerTipCard(tip: managerTip),
                   const SizedBox(height: 20),
                   Row(
                     children: [
@@ -692,74 +694,86 @@ Future<void> _showFallMemoSheet(
   );
 }
 
-class _ManagerTipCard extends StatelessWidget {
-  const _ManagerTipCard({required this.tip});
+/// `yyyy.MM.dd` 형식 포맷 — 파싱 실패하면 "-".
+String _formatClearDate(DateTime? d) {
+  if (d == null) return '-';
+  return '${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
+}
 
-  final String? tip;
+/// 트라이 기록 중 가장 오래된 날짜 — 기록이 없으면 "미시작".
+String _startDateLabel(List<ProblemTryLog> history) {
+  final dates = history.map((l) => l.tryDateTime).whereType<DateTime>().toList();
+  if (dates.isEmpty) return '미시작';
+  return _formatClearDate(dates.reduce((a, b) => a.isBefore(b) ? a : b));
+}
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.emoji_objects_outlined, size: 16, color: AppColors.holdCyan),
-              SizedBox(width: 6),
-              Text(
-                '점장님의 팁',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.holdCyan),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(tip ?? '이 홀드에 등록된 팁이 아직 없어요.', style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
+/// 완등(dropPoint >= holdCount) 기록 중 가장 최근 날짜 — 없으면 "미완등".
+String _clearDateLabel(List<ProblemTryLog> history, int holdCount) {
+  final clearDates = history
+      .where((l) => l.dropPoint >= holdCount)
+      .map((l) => l.tryDateTime)
+      .whereType<DateTime>()
+      .toList();
+  if (clearDates.isEmpty) return '미완등';
+  return _formatClearDate(clearDates.reduce((a, b) => a.isAfter(b) ? a : b));
 }
 
 class _StatGrid extends StatelessWidget {
-  const _StatGrid({required this.detail, required this.myTryCountDisplay, required this.bestHoldIndex});
+  const _StatGrid({
+    required this.detail,
+    required this.myTryCountDisplay,
+    required this.bestHoldIndex,
+    required this.startDateLabel,
+    required this.clearDateLabel,
+  });
 
   final GymProblemDetail detail;
   final int myTryCountDisplay;
   final int bestHoldIndex;
+  final String startDateLabel;
+  final String clearDateLabel;
 
   @override
   Widget build(BuildContext context) {
     final bestLabel = bestHoldIndex <= 0
         ? '-'
         : (bestHoldIndex >= detail.holdCount ? '완등' : '$bestHoldIndex번째');
-    return Row(
+    return Column(
       children: [
-        Expanded(child: _StatTile(label: '홀드 갯수', value: '${detail.holdCount}개')),
-        const SizedBox(width: 8),
-        Expanded(child: _StatTile(label: '내 트라이', value: '$myTryCountDisplay회')),
-        const SizedBox(width: 8),
-        Expanded(child: _StatTile(label: '내 최고 도달', value: bestLabel)),
-        const SizedBox(width: 8),
-        Expanded(child: _StatTile(label: '클리어 인원', value: '${detail.clearCount}명')),
+        Row(
+          children: [
+            Expanded(child: _StatTile(label: '홀드 갯수', value: '${detail.holdCount}개')),
+            const SizedBox(width: 8),
+            Expanded(child: _StatTile(label: '내 트라이', value: '$myTryCountDisplay회')),
+            const SizedBox(width: 8),
+            Expanded(child: _StatTile(label: '내 최고 도달', value: bestLabel)),
+            const SizedBox(width: 8),
+            Expanded(child: _StatTile(label: '클리어 인원', value: '${detail.clearCount}명')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _StatTile(label: '트라이 시작일자', value: startDateLabel, valueFontSize: 15),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatTile(label: '완등일자', value: clearDateLabel, valueFontSize: 15),
+            ),
+          ],
+        ),
       ],
     );
   }
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
+  const _StatTile({required this.label, required this.value, this.valueFontSize = 18});
 
   final String label;
   final String value;
+  final double valueFontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -774,7 +788,7 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: valueFontSize, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 4),
           Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),

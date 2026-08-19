@@ -5,6 +5,7 @@ import '../../auth/application/auth_state.dart';
 import '../data/bookmark_api.dart';
 import '../data/gym_api.dart';
 import '../data/problem_try_mock_data.dart';
+import '../domain/clear_record.dart';
 import '../domain/drop_point_stats.dart';
 import '../domain/gym_detail.dart';
 import '../domain/gym_level.dart';
@@ -79,6 +80,18 @@ final myProblemTryLogsProvider = FutureProvider.family<List<ProblemTryLog>, int>
   if (userId == null) return const [];
   final page = await ref.watch(gymApiProvider).fetchTryLogsByUser(userId, size: 100);
   return page.logs.where((log) => log.problemId == problemId).toList();
+});
+
+/// user+problem 기준 진행 중인(isClear=false) 완등 기록 — "시작일자" 표시와
+/// '트라이 시작'의 기존 기록 재사용이 함께 쓰는 단일 소스([problem_try_providers.dart]).
+/// 새로 만들거나 완등 처리하면 무효화해 최신 상태를 반영한다. userId를 모르면
+/// (게스트, 구 버전 세션) 항상 null — 화면에서는 "미시작"으로 표시한다.
+final inProgressClearRecordProvider = FutureProvider.family<ClearRecord?, int>((ref, problemId) async {
+  final authState = ref.watch(authControllerProvider);
+  if (authState is! AuthAuthenticated) return null;
+  final userId = authState.user.userId;
+  if (userId == null) return null;
+  return ref.watch(gymApiProvider).fetchInProgressClearRecord(userId: userId, problemId: problemId);
 });
 
 /// GET /api/level/gym/{gymId} — 암장 난이도(레벨) 목록. 문제 등록/수정 폼의
