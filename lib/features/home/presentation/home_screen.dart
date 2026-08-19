@@ -8,8 +8,6 @@ import '../../auth/application/auth_providers.dart';
 import '../../auth/application/auth_state.dart';
 import '../../shell/record_or_manage_screen.dart' show gymManagerRole;
 import '../application/home_providers.dart';
-import '../data/home_mock_data.dart';
-import '../domain/friend_activity.dart';
 import '../domain/home_gym_card.dart';
 import '../domain/notice.dart';
 
@@ -65,24 +63,8 @@ class HomeScreen extends ConsumerWidget {
         ),
         if (isAuthenticated) ...[
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          const SliverToBoxAdapter(child: _StreakStatCard()),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          const SliverToBoxAdapter(child: _SectionHeader(title: '친구 활동')),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 96,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: mockFriendActivities.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, i) =>
-                    _FriendActivityCard(activity: mockFriendActivities[i]),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          // 연속방문 스트릭 / 친구 활동은 API 없어 목업으로 있던 것을 숨김
+          // 처리함(2026-08-18) — 개발 완료되면 다시 추가 예정.
           const _HomeGymCardsSection(),
         ] else
           const SliverToBoxAdapter(child: _GuestPromptCard()),
@@ -227,119 +209,6 @@ class _HomeGymCardsSection extends ConsumerWidget {
         error: (error, stackTrace) => _HomeGymCardsErrorCard(
           onRetry: () => ref.invalidate(homeGymCardsProvider),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-    );
-  }
-}
-
-class _StreakStatCard extends StatelessWidget {
-  const _StreakStatCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.local_fire_department_rounded,
-                color: AppColors.holdMagenta,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$mockStreakDays일 연속 방문 중',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '이번달 완등 $mockMonthlyClimbCount회',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FriendActivityCard extends StatelessWidget {
-  const _FriendActivityCard({required this.activity});
-
-  final FriendActivity activity;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: activity.accent.withValues(alpha: 0.18),
-            child: Text(
-              activity.friendNickname.characters.first,
-              style: TextStyle(
-                color: activity.accent,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${activity.friendNickname} · ${activity.grade} 완등',
-                  style: theme.textTheme.titleMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${activity.gymName} · ${activity.timeAgo}',
-                  style: theme.textTheme.labelSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -616,7 +485,7 @@ class _GuestPromptCard extends StatelessWidget {
               Text('로그인하고 더 많은 기능을 만나보세요', style: theme.textTheme.titleMedium),
               const SizedBox(height: 6),
               Text(
-                '즐겨찾기 클라이밍장, 완등 스트릭, 친구 활동은 로그인 후 확인할 수 있어요.',
+                '즐겨찾기 클라이밍장은 로그인 후 확인할 수 있어요.',
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 14),
